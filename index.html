@@ -363,6 +363,27 @@
       color: #dc2626;
     }
     .sil-dugmesi.onay { background: #dc2626; color: #fff; }
+
+    /* ---------- ÖZET (Adım 5 / Sürüm 0.6) ---------- */
+    .ay-secici {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .ay-secici span { font-size: 17px; font-weight: 600; }
+    .ay-secici button {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--cizgi);
+      background: var(--kart);
+      color: var(--yazi);
+      font-size: 22px;
+      line-height: 1;
+      font-family: inherit;
+    }
+    .ay-secici button:disabled { opacity: .3; }
+    .kart-alt { font-size: 13px; color: var(--soluk); margin-top: 6px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -381,19 +402,28 @@
          BÖLÜM 4: SAYFA — ÖZET (ana sayfa)
          =================================================== -->
     <section class="sayfa aktif" id="sayfa-ozet">
+      <!-- Ay seçici: ‹ Ekim 2026 › (Sürüm 0.6) -->
+      <div class="ay-secici">
+        <button type="button" id="ay-geri" aria-label="Önceki ay">‹</button>
+        <span id="ay-adi"></span>
+        <button type="button" id="ay-ileri" aria-label="Sonraki ay">›</button>
+      </div>
+
       <div class="kart">
-        <h2>Bu ay LPG</h2>
-        <div class="deger lpg-renk">— ₺</div>
+        <h2>LPG</h2>
+        <div class="deger lpg-renk" id="ozet-lpg">— ₺</div>
+        <div class="kart-alt" id="ozet-lpg-alt"></div>
       </div>
       <div class="kart">
-        <h2>Bu ay benzin</h2>
-        <div class="deger benzin-renk">— ₺</div>
+        <h2>Benzin</h2>
+        <div class="deger benzin-renk" id="ozet-benzin">— ₺</div>
+        <div class="kart-alt" id="ozet-benzin-alt"></div>
       </div>
       <div class="kart">
         <h2>Km başı toplam maliyet</h2>
-        <div class="deger vurgu-renk">— ₺/km</div>
+        <div class="deger vurgu-renk" id="ozet-km">— ₺/km</div>
+        <div class="kart-alt" id="ozet-km-alt"></div>
       </div>
-      <p class="bilgi" id="kayit-sayisi"></p>
     </section>
 
     <!-- ===================================================
@@ -511,7 +541,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "0.5";
+    const SURUM = "0.6";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -992,11 +1022,68 @@
       bildirim.zamanlayici = setTimeout(() => bildirim.classList.remove("goster"), 1800);
     }
 
-    // Özet sayfası (geçici: şimdilik sadece kayıt sayısı, hesaplar Adım 5'te)
-    function ozetGuncelle() {
-      el("kayit-sayisi").textContent =
-        "Kayıtlı dolum sayısı: " + kayitlariOku().length + " (hesaplamalar Adım 5'te)";
+    // =====================================================
+    // ÖZET SAYFASI (Adım 5 / Sürüm 0.6)
+    // Km başı maliyet = ayın (LPG + benzin) tutarı ÷ ayın LPG km'si.
+    // Km sadece LPG kayıtlarından alınır, aynı yol iki kez sayılmasın.
+    // =====================================================
+    function buAy() {
+      const s = new Date();
+      return s.getFullYear() + "-" + ikiHane(s.getMonth() + 1);
     }
+    let seciliAy = buAy();   // "2026-10" biçiminde
+
+    // "2026-10" → bir ay ileri/geri
+    function ayKaydir(ay, fark) {
+      const [y, a] = ay.split("-").map(Number);
+      const t = new Date(y, a - 1 + fark, 1);
+      return t.getFullYear() + "-" + ikiHane(t.getMonth() + 1);
+    }
+
+    function ozetGuncelle() {
+      const sirali = siraliKayitlar();
+      const ayKayitlari = sirali.filter(k => k.tarih.slice(0, 7) === seciliAy);
+      const lpg = ayKayitlari.filter(k => k.tur === "LPG");
+      const benzin = ayKayitlari.filter(k => k.tur === "BENZIN");
+      const topla = (liste, alan) => liste.reduce((t, k) => t + (k[alan] || 0), 0);
+
+      // Ay başlığı ve ok düğmeleri
+      const [yil, ayNo] = seciliAy.split("-");
+      el("ay-adi").textContent = AY_ADLARI[+ayNo - 1] + " " + yil;
+      el("ay-ileri").disabled = seciliAy >= buAy();
+      const enEskiAy = sirali.length ? sirali[0].tarih.slice(0, 7) : buAy();
+      el("ay-geri").disabled = seciliAy <= enEskiAy;
+
+      // Bir yakıt türünün kartını doldurur
+      function kartDoldur(liste, degerId, altId) {
+        const tutar = topla(liste, "tutar");
+        const litre = topla(liste, "litre");
+        el(degerId).textContent = liste.length ? tlBicim.format(tutar) + " ₺" : "— ₺";
+        el(altId).textContent = liste.length
+          ? liste.length + " dolum · " + tlBicim.format(litre) + " L · ort. " +
+            tlBicim.format(tutar / litre) + " ₺/L"
+          : "Bu ayda kayıt yok";
+      }
+      kartDoldur(lpg, "ozet-lpg", "ozet-lpg-alt");
+      kartDoldur(benzin, "ozet-benzin", "ozet-benzin-alt");
+
+      // Km başı maliyet
+      const toplamTutar = topla(ayKayitlari, "tutar");
+      const lpgKm = lpg.reduce((t, k) => t + (gidilenKmBul(k, sirali) || 0), 0);
+      if (lpgKm > 0) {
+        el("ozet-km").textContent = tlBicim.format(toplamTutar / lpgKm) + " ₺/km";
+        el("ozet-km-alt").textContent = lpgKm.toLocaleString("tr-TR") + " km · toplam " +
+          tlBicim.format(toplamTutar) + " ₺ (LPG + benzin)";
+      } else {
+        el("ozet-km").textContent = "— ₺/km";
+        el("ozet-km-alt").textContent = ayKayitlari.length
+          ? "Bu ay LPG kayıtlarında km bilgisi yok. İlk sayaç kaydından sonraki dolumlarda hesaplanır."
+          : "Bu ayda kayıt yok";
+      }
+    }
+
+    el("ay-geri").addEventListener("click", () => { seciliAy = ayKaydir(seciliAy, -1); ozetGuncelle(); });
+    el("ay-ileri").addEventListener("click", () => { seciliAy = ayKaydir(seciliAy, +1); ozetGuncelle(); });
 
     // Uygulama açılınca
     formuSifirla();
