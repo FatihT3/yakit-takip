@@ -386,7 +386,7 @@
       font-family: inherit;
     }
     .ay-secici button:disabled { opacity: .3; }
-    .kart-alt { font-size: 13px; color: var(--soluk); margin-top: 6px; line-height: 1.5; }
+    .kart-alt { font-size: 13px; color: var(--soluk); margin-top: 6px; line-height: 1.5; white-space: pre-line; }
 
     /* ---------- FİŞ OKUMA (Adım 6 / Sürüm 0.7) ---------- */
     /* ---------- YEDEKLEME (Adım 7 / Sürüm 0.8) ---------- */
@@ -602,7 +602,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "1.2";
+    const SURUM = "1.3";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -945,6 +945,18 @@
       return typeof kayit.gidilenKm === "number" ? kayit.gidilenKm : null;
     }
 
+    // 100 km'de tüketim (L/100 km) — Sürüm 1.3
+    // Her LPG dolumu, bir önceki dolumdan beri yakılan gazı yerine koyar; gidilen km de
+    // tam o aralığı ölçer. Bu yüzden: (km'si olan kayıtların litresi ÷ km'si) × 100.
+    // Km'si olmayan kayıtlar hesaba katılmaz (yoksa sonuç şişer). Sonuç yoksa null.
+    function yuzKmTuketim(kayitlar) {
+      const kmli = kayitlar.filter(k => k.tur === "LPG" && gidilenKmBul(k) > 0);
+      const km = kmli.reduce((t, k) => t + gidilenKmBul(k), 0);
+      const litre = kmli.reduce((t, k) => t + k.litre, 0);
+      return km > 0 ? litre / km * 100 : null;
+    }
+    const tuketimBicim = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
     // Eski sürümlerde sayaçla girilen kayıtları bir kereliğine gidilen km'ye çevirir:
     // aynı türdeki bir önceki sayaçlı kayıtla farkı alınır, ilk sayaç kaydında km boş kalır.
     function sayacKayitlariniCevir() {
@@ -1012,7 +1024,8 @@
               "</span>" +
               '<span class="satir-sag">' +
                 '<div class="satir-tutar">' + tlBicim.format(k.tutar) + " ₺</div>" +
-                '<div class="satir-km">' + (km != null ? kmYazisi(km) + " km" : "") + "</div>" +
+                '<div class="satir-km">' + (km != null ? kmYazisi(km) + " km · " +
+                  tuketimBicim.format(k.litre / km * 100) + " L/100" : "") + "</div>" +
               "</span>" +
             "</button>";
         });
@@ -1227,6 +1240,10 @@
           : "Bu ayda kayıt yok";
       }
       kartDoldur(lpg, "ozet-lpg", "ozet-lpg-alt");
+      const tuketim = yuzKmTuketim(lpg);
+      if (tuketim != null) {
+        el("ozet-lpg-alt").textContent += "\nOrtalama tüketim: " + tuketimBicim.format(tuketim) + " L/100 km";
+      }
       kartDoldur(benzin, "ozet-benzin", "ozet-benzin-alt");
 
       // Km başı maliyet
