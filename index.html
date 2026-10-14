@@ -72,7 +72,7 @@
 
     /* Sayfa içeriği: alttaki sekme çubuğunun arkasında kalmasın */
     main {
-      padding: 16px 16px calc(env(safe-area-inset-bottom) + 90px);
+      padding: 16px 16px calc(env(safe-area-inset-bottom) + 160px);  /* + düğmesi son satırı kapatmasın */
     }
 
     /* Sekmelerden sadece aktif olan görünür */
@@ -280,6 +280,89 @@
       margin-left: 4px;
     }
     .alan.oto-alan .oto-etiket { display: inline; }
+
+    /* ---------- KAYIT LİSTESİ (Adım 4 / Sürüm 0.5) ---------- */
+    /* Ay başlığı: "Ekim 2026" ve o ayın toplamları */
+    .ay-baslik {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin: 18px 4px 8px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .ay-baslik:first-child { margin-top: 0; }
+    .ay-baslik small { font-size: 12px; font-weight: 500; color: var(--soluk); }
+
+    .liste-kart {
+      background: var(--kart);
+      border: 1px solid var(--cizgi);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    /* Bir dolum satırı (dokununca düzenleme açılır) */
+    .satir {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 14px;
+      background: none;
+      border: none;
+      border-top: 1px solid var(--cizgi);
+      color: var(--yazi);
+      font-family: inherit;
+      text-align: left;
+    }
+    .satir:first-child { border-top: none; }
+    .satir:active { background: var(--arkaplan); }
+
+    /* Soldaki tür rozeti: LPG mavi, Benzin turuncu */
+    .rozet {
+      flex: none;
+      width: 54px;
+      padding: 5px 0;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      color: #fff;
+    }
+    .rozet.LPG { background: var(--lpg); }
+    .rozet.BENZIN { background: var(--benzin); }
+
+    .satir-orta { flex: 1; min-width: 0; }
+    .satir-ust { font-size: 15px; font-weight: 600; }
+    .satir-alt {
+      font-size: 13px;
+      color: var(--soluk);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .satir-sag { flex: none; text-align: right; }
+    .satir-tutar { font-size: 16px; font-weight: 700; }
+    .satir-km { font-size: 12px; color: var(--soluk); margin-top: 2px; }
+
+    /* Hiç kayıt yokken */
+    .bos-liste { text-align: center; padding: 40px 20px; }
+    .bos-liste .bilgi { margin-top: 6px; }
+
+    /* Düzenlemedeki "Kaydı sil" düğmesi */
+    .sil-dugmesi {
+      width: 100%;
+      margin-top: 10px;
+      padding: 13px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 12px;
+      border: 1px solid #dc2626;
+      background: none;
+      color: #dc2626;
+    }
+    .sil-dugmesi.onay { background: #dc2626; color: #fff; }
   </style>
 </head>
 <body>
@@ -317,9 +400,8 @@
          BÖLÜM 6: SAYFA — KAYITLAR (liste)
          =================================================== -->
     <section class="sayfa" id="sayfa-kayitlar">
-      <div class="kart">
-        <p class="bilgi">Kayıt listesi Adım 4'te eklenecek.</p>
-      </div>
+      <!-- Liste JavaScript ile doldurulur (listeGuncelle). Aylara göre gruplu, yeniden eskiye. -->
+      <div id="kayit-listesi"></div>
     </section>
   </main>
 
@@ -399,6 +481,8 @@
 
         <button type="submit" class="buton">Kaydet</button>
         <div class="ipucu hata" id="form-hata"></div>
+        <!-- Sadece düzenlemede görünür. İlk dokunuşta onay ister, ikinci dokunuşta siler. -->
+        <button type="button" class="sil-dugmesi" id="sil-dugmesi" hidden>Kaydı sil</button>
       </form>
   </div>
 
@@ -427,7 +511,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "0.4.3";
+    const SURUM = "0.5";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -537,13 +621,26 @@
     function seciliKmTuru() { return form.querySelector('input[name="kmTuru"]:checked').value; }
     function ikiHane(n)     { return String(n).padStart(2, "0"); }
 
+    // Düzenlenen kaydın kimliği (yeni kayıtta null). Sayaç karşılaştırmalarında
+    // kaydın kendisiyle karşılaştırılmaması için kullanılır.
+    let duzenlenenId = null;
+
     // Aynı türdeki, verilen tarih/saatten ÖNCEKİ en son sayaçlı kaydı bulur
     function oncekiSayacKaydi(tur, tarih, saat) {
       const sinir = tarih + (saat || "");
       const adaylar = siraliKayitlar().filter(k =>
-        k.tur === tur && k.sayac != null && (k.tarih + (k.saat || "")) < sinir
+        k.id !== duzenlenenId && k.tur === tur && k.sayac != null && (k.tarih + (k.saat || "")) < sinir
       );
       return adaylar.length ? adaylar[adaylar.length - 1] : null;
+    }
+
+    // Aynı türdeki, verilen tarih/saatten SONRAKİ ilk sayaçlı kaydı bulur
+    // (geçmiş tarihli kayıt eklerken / düzenlerken sayaç arada kalmalı)
+    function sonrakiSayacKaydi(tur, tarih, saat) {
+      const sinir = tarih + (saat || "");
+      return siraliKayitlar().find(k =>
+        k.id !== duzenlenenId && k.tur === tur && k.sayac != null && (k.tarih + (k.saat || "")) > sinir
+      ) || null;
     }
 
     // -----------------------------------------------------
@@ -620,9 +717,13 @@
 
       el("f-km").placeholder = "Örn. 128450";
       const onceki = oncekiSayacKaydi(seciliTur(), el("f-tarih").value, el("f-saat").value);
+      const sonraki = sonrakiSayacKaydi(seciliTur(), el("f-tarih").value, el("f-saat").value);
       const sayac = kmOku();
 
-      if (!onceki) {
+      if (sonraki && !isNaN(sayac) && sayac >= sonraki.sayac) {
+        ipucu.textContent = "Sayaç sonraki kayıttan (" + sonraki.sayac.toLocaleString("tr-TR") + ") küçük olmalı";
+        ipucu.classList.add("hata");
+      } else if (!onceki) {
         ipucu.textContent = "Bu türde ilk sayaç kaydı. Fark bir sonraki dolumda hesaplanacak.";
       } else if (isNaN(sayac)) {
         ipucu.textContent = "Önceki sayaç: " + onceki.sayac.toLocaleString("tr-TR") + " km";
@@ -669,8 +770,33 @@
     // -----------------------------------------------------
     // AÇILIR PANEL (Sürüm 0.3)
     // -----------------------------------------------------
-    function paneliAc() {
+    // kayit verilirse panel "düzenleme" modunda, o kaydın bilgileriyle açılır
+    function paneliAc(kayit) {
       formuSifirla();
+      duzenlenenId = null;
+      el("panel-baslik").textContent = "Yeni Kayıt";
+      silOnayiniSifirla();
+      el("sil-dugmesi").hidden = true;
+
+      if (kayit && kayit.id) {
+        duzenlenenId = kayit.id;
+        el("panel-baslik").textContent = "Kaydı Düzenle";
+        el("sil-dugmesi").hidden = false;
+        el(kayit.tur === "BENZIN" ? "tur-benzin" : "tur-lpg").checked = true;
+        el("f-tarih").value = kayit.tarih;
+        el("f-saat").value = kayit.saat || "";
+        el("f-istasyon").value = kayit.istasyon || "";
+        ucluDoldur(kayit.litre, kayit.tutar);
+        if (kayit.sayac != null) {
+          el("km-sayac").checked = true;
+          el("f-km").value = kayit.sayac;
+        } else {
+          el("km-gidilen").checked = true;
+          el("f-km").value = kayit.gidilenKm || "";
+        }
+        kmIpucuGoster();
+      }
+
       el("ekle-paneli").scrollTop = 0;
       el("ekle-paneli").classList.add("acik");
       el("perde").classList.add("acik");
@@ -682,7 +808,29 @@
       el("perde").classList.remove("acik");
       document.body.classList.remove("panel-acik");
     }
-    el("ekle-dugmesi").addEventListener("click", paneliAc);
+    el("ekle-dugmesi").addEventListener("click", () => paneliAc());
+
+    // "Kaydı sil": ilk dokunuşta kırmızıya döner ve onay ister, 3 sn içinde ikinci dokunuş siler
+    function silOnayiniSifirla() {
+      const d = el("sil-dugmesi");
+      d.classList.remove("onay");
+      d.textContent = "Kaydı sil";
+      clearTimeout(d.zamanlayici);
+    }
+    el("sil-dugmesi").addEventListener("click", () => {
+      const d = el("sil-dugmesi");
+      if (!d.classList.contains("onay")) {
+        d.classList.add("onay");
+        d.textContent = "Silmek için tekrar dokun";
+        d.zamanlayici = setTimeout(silOnayiniSifirla, 3000);
+        return;
+      }
+      if (duzenlenenId && kayitSil(duzenlenenId)) {
+        paneliKapat();
+        bildirimGoster("Kayıt silindi");
+        hepsiniGuncelle();
+      }
+    });
     el("panel-kapat").addEventListener("click", paneliKapat);
     el("perde").addEventListener("click", paneliKapat);   // boş yere dokununca kapanır
 
@@ -718,18 +866,120 @@
 
       if (seciliKmTuru() === "sayac") {
         const onceki = oncekiSayacKaydi(tur, tarih, saat);
+        const sonraki = sonrakiSayacKaydi(tur, tarih, saat);
         if (onceki && km <= onceki.sayac) return hataGoster("Sayaç önceki kayıttan büyük olmalı.");
+        if (sonraki && km >= sonraki.sayac) return hataGoster("Sayaç sonraki kayıttan küçük olmalı.");
         kayit.sayac = km;
       } else {
         kayit.gidilenKm = km;
       }
 
-      if (kayitEkle(kayit)) {
+      const basarili = duzenlenenId ? kayitGuncelle(duzenlenenId, kayit) : kayitEkle(kayit);
+      if (basarili) {
+        const mesaj = duzenlenenId ? "✓ Güncellendi" : "✓ Kaydedildi";
         paneliKapat();
-        bildirimGoster("✓ Kaydedildi");
-        ozetGuncelle();
+        bildirimGoster(mesaj);
+        hepsiniGuncelle();
       }
     });
+
+    // =====================================================
+    // KAYIT LİSTESİ (Adım 4 / Sürüm 0.5)
+    // =====================================================
+    const tlBicim = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const AY_ADLARI = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+                       "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+
+    // HTML'e yazılacak metindeki özel karakterleri zararsız hale getirir
+    function guvenli(metin) {
+      return String(metin).replace(/[&<>"']/g, c =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    // Bir kayıt için gidilen km: sayaç girildiyse önceki sayaçlı kayda göre fark,
+    // değilse elle girilen km. Hesaplanamıyorsa null.
+    function gidilenKmBul(kayit, siraliListe) {
+      if (kayit.gidilenKm != null) return kayit.gidilenKm;
+      if (kayit.sayac == null) return null;
+      const zaman = kayit.tarih + (kayit.saat || "");
+      let onceki = null;
+      for (const k of siraliListe) {
+        if (k.id === kayit.id) continue;
+        if (k.tur === kayit.tur && k.sayac != null && (k.tarih + (k.saat || "")) < zaman) onceki = k;
+      }
+      return onceki ? kayit.sayac - onceki.sayac : null;
+    }
+
+    function listeGuncelle() {
+      const kutu = el("kayit-listesi");
+      const sirali = siraliKayitlar();
+
+      if (sirali.length === 0) {
+        kutu.innerHTML =
+          '<div class="kart bos-liste"><div class="satir-ust">Henüz kayıt yok</div>' +
+          '<p class="bilgi">Sağ alttaki + düğmesiyle ilk dolumunu ekle.</p></div>';
+        return;
+      }
+
+      // Yeniden eskiye, aylara göre grupla ("2026-10" → kayıtlar)
+      const aylar = {};
+      [...sirali].reverse().forEach(k => {
+        const ay = k.tarih.slice(0, 7);
+        (aylar[ay] = aylar[ay] || []).push(k);
+      });
+
+      let html = "";
+      Object.keys(aylar).forEach(ay => {
+        const kayitlar = aylar[ay];
+        const [yil, ayNo] = ay.split("-");
+        const lpgToplam = kayitlar.filter(k => k.tur === "LPG").reduce((t, k) => t + k.tutar, 0);
+        const benzinToplam = kayitlar.filter(k => k.tur === "BENZIN").reduce((t, k) => t + k.tutar, 0);
+
+        html += '<div class="ay-baslik"><span>' + AY_ADLARI[+ayNo - 1] + " " + yil + "</span><small>" +
+          "LPG " + tlBicim.format(lpgToplam) + " ₺" +
+          (benzinToplam > 0 ? " · Benzin " + tlBicim.format(benzinToplam) + " ₺" : "") +
+          "</small></div>";
+
+        html += '<div class="liste-kart">';
+        kayitlar.forEach(k => {
+          const gun = +k.tarih.slice(8, 10);
+          const fiyat = k.fiyat || (k.litre ? k.tutar / k.litre : 0);
+          const km = gidilenKmBul(k, sirali);
+          const altSatir = [tlBicim.format(k.litre) + " L", tlBicim.format(fiyat) + " ₺/L"];
+          if (k.istasyon) altSatir.push(guvenli(k.istasyon));
+
+          html +=
+            '<button type="button" class="satir" data-id="' + guvenli(k.id) + '">' +
+              '<span class="rozet ' + (k.tur === "BENZIN" ? "BENZIN" : "LPG") + '">' +
+                (k.tur === "BENZIN" ? "BENZİN" : "LPG") + "</span>" +
+              '<span class="satir-orta">' +
+                '<div class="satir-ust">' + gun + " " + AY_ADLARI[+ayNo - 1] + (k.saat ? " · " + guvenli(k.saat) : "") + "</div>" +
+                '<div class="satir-alt">' + altSatir.join(" · ") + "</div>" +
+              "</span>" +
+              '<span class="satir-sag">' +
+                '<div class="satir-tutar">' + tlBicim.format(k.tutar) + " ₺</div>" +
+                '<div class="satir-km">' + (km != null ? km.toLocaleString("tr-TR") + " km" : "ilk sayaç") + "</div>" +
+              "</span>" +
+            "</button>";
+        });
+        html += "</div>";
+      });
+      kutu.innerHTML = html;
+    }
+
+    // Listedeki bir satıra dokununca o kayıt düzenleme modunda açılır
+    el("kayit-listesi").addEventListener("click", olay => {
+      const satir = olay.target.closest(".satir");
+      if (!satir) return;
+      const kayit = kayitlariOku().find(k => k.id === satir.dataset.id);
+      if (kayit) paneliAc(kayit);
+    });
+
+    // Kayıtlar değişince listeyi ve özeti birlikte yenile
+    function hepsiniGuncelle() {
+      listeGuncelle();
+      ozetGuncelle();
+    }
 
     // Ekranın altında kısa süreli bildirim balonu
     const bildirim = document.createElement("div");
@@ -750,7 +1000,7 @@
 
     // Uygulama açılınca
     formuSifirla();
-    ozetGuncelle();
+    hepsiniGuncelle();
   </script>
 </body>
 </html>
