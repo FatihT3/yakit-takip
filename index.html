@@ -472,7 +472,8 @@
     </div>
       <form id="kayit-formu" novalidate>
 
-        <!-- Fiş okuma (Adım 6 / Sürüm 0.7): fotoğraftan tarih, saat, litre, tutar, istasyon -->
+        <!-- Fiş okuma (Adım 6 / Sürüm 0.7): fotoğraftan tarih, saat, litre, fiyat, tutar, yakıt türü.
+             İstasyon adı okunmaz (fiş başlığı güvenilir okunamıyor, Sürüm 0.7.2) -->
         <button type="button" class="fis-dugmesi" id="fis-dugmesi">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>
@@ -576,7 +577,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "0.7.1";
+    const SURUM = "0.7.2";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -1252,7 +1253,7 @@
 
     // metinler: bir ya da daha fazla okuma sonucunun metni
     function fisCozumle(metinler) {
-      const sonuc = { tarih: null, saat: null, litre: null, fiyat: null, tutar: null, tur: null, istasyon: null, emin: false };
+      const sonuc = { tarih: null, saat: null, litre: null, fiyat: null, tutar: null, tur: null, emin: false };
       const tutarlar = [], litreler = [], fiyatlar = [];
       const gunler = [], aylar = [], yillar = [], saatler = [];
       const buYil = new Date().getFullYear();
@@ -1305,19 +1306,6 @@
           else if (/BENZ[İI]N|KUR[ŞS]UNSUZ|V\s*\/?\s*MAX|EXCELL|ULTIMATE/.test(buyuk)) sonuc.tur = "BENZIN";
         }
 
-        // İstasyon: fişin en üstündeki, çoğu büyük harfli kelimelerden oluşan ilk satır
-        if (!sonuc.istasyon) {
-          for (const satir of satirlar.slice(0, 4)) {
-            const kelimeler = satir.split(/\s+/).filter(k => /^[A-ZÇĞİÖŞÜ&.\-]{2,}$/.test(k));
-            if (kelimeler.length >= 2 && kelimeler.join("").length >= 6) {
-              sonuc.istasyon = kelimeler.join(" ")
-                .toLocaleLowerCase("tr")
-                .replace(/(^|\s)(\S)/g, (_, b, h) => b + h.toLocaleUpperCase("tr"))
-                .slice(0, 32);
-              break;
-            }
-          }
-        }
       });
 
       // Tarih
@@ -1358,28 +1346,6 @@
       return sonuc;
     }
 
-    // İki metnin benzerliği (0-1): harf ikilileri üzerinden (Dice katsayısı)
-    function benzerlik(a, b) {
-      const sade = t => t.toLocaleUpperCase("tr").replace(/[^A-ZÇĞİÖŞÜ]/g, "");
-      const ikililer = t => { const l = []; for (let i = 0; i < t.length - 1; i++) l.push(t.slice(i, i + 2)); return l; };
-      const x = ikililer(sade(a)), y = ikililer(sade(b));
-      if (!x.length || !y.length) return 0;
-      const kalan = [...y];
-      let ortak = 0;
-      x.forEach(c => { const i = kalan.indexOf(c); if (i >= 0) { ortak++; kalan.splice(i, 1); } });
-      return 2 * ortak / (x.length + y.length);
-    }
-
-    // Okunan istasyon adı daha önce kaydedilmiş bir ada benziyorsa o adı kullan
-    // (fiş başlığı genelde bozuk okunur; kullanıcı bir kez düzeltince hep doğru gelir)
-    function istasyonEslestir(okunan) {
-      if (!okunan) return null;
-      const adlar = [...new Set(kayitlariOku().map(k => k.istasyon).filter(Boolean))];
-      let enIyi = null, enYuksek = 0;
-      adlar.forEach(ad => { const b = benzerlik(okunan, ad); if (b > enYuksek) { enYuksek = b; enIyi = ad; } });
-      return enYuksek >= 0.3 ? enIyi : okunan;
-    }
-
     // Okunan değerleri forma yazar ve neyin okunup neyin okunamadığını söyler
     function fisiFormaYaz(s) {
       const doldurulan = [];
@@ -1397,9 +1363,6 @@
         UCLU.forEach(id => { if (el(id).value) isaretle(id); });
         if (s.litre) doldurulan.push("litre");
         doldurulan.push("tutar");
-      }
-      if (s.istasyon && !el("f-istasyon").value.trim()) {
-        el("f-istasyon").value = istasyonEslestir(s.istasyon); isaretle("f-istasyon"); doldurulan.push("istasyon");
       }
       kmIpucuGoster();
 
