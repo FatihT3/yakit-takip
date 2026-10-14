@@ -563,18 +563,10 @@
           <datalist id="istasyon-listesi"></datalist>
         </div>
 
-        <!-- Kilometre: sayaç değeri mi, gidilen km mi? -->
-        <div class="alan">
-          <label>Kilometre</label>
-          <div class="secim">
-            <input type="radio" name="kmTuru" id="km-sayac" value="sayac" checked>
-            <label for="km-sayac">Sayaç</label>
-            <input type="radio" name="kmTuru" id="km-gidilen" value="gidilen">
-            <label for="km-gidilen">Gidilen km</label>
-          </div>
-        </div>
-        <div class="alan">
-          <input type="text" inputmode="numeric" id="f-km" placeholder="Örn. 128450">
+        <!-- Gidilen km: sadece LPG'de sorulur, benzinde gizlenir (Sürüm 1.1) -->
+        <div class="alan" id="km-blok">
+          <label for="f-km">Gidilen km</label>
+          <input type="text" inputmode="numeric" id="f-km" placeholder="Örn. 420">
           <div class="ipucu" id="km-ipucu"></div>
         </div>
 
@@ -610,7 +602,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "1.0";
+    const SURUM = "1.1";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -717,30 +709,10 @@
     }
 
     function seciliTur()    { return form.querySelector('input[name="tur"]:checked').value; }
-    function seciliKmTuru() { return form.querySelector('input[name="kmTuru"]:checked').value; }
     function ikiHane(n)     { return String(n).padStart(2, "0"); }
 
-    // Düzenlenen kaydın kimliği (yeni kayıtta null). Sayaç karşılaştırmalarında
-    // kaydın kendisiyle karşılaştırılmaması için kullanılır.
+    // Düzenlenen kaydın kimliği (yeni kayıtta null)
     let duzenlenenId = null;
-
-    // Aynı türdeki, verilen tarih/saatten ÖNCEKİ en son sayaçlı kaydı bulur
-    function oncekiSayacKaydi(tur, tarih, saat) {
-      const sinir = tarih + (saat || "");
-      const adaylar = siraliKayitlar().filter(k =>
-        k.id !== duzenlenenId && k.tur === tur && k.sayac != null && (k.tarih + (k.saat || "")) < sinir
-      );
-      return adaylar.length ? adaylar[adaylar.length - 1] : null;
-    }
-
-    // Aynı türdeki, verilen tarih/saatten SONRAKİ ilk sayaçlı kaydı bulur
-    // (geçmiş tarihli kayıt eklerken / düzenlerken sayaç arada kalmalı)
-    function sonrakiSayacKaydi(tur, tarih, saat) {
-      const sinir = tarih + (saat || "");
-      return siraliKayitlar().find(k =>
-        k.id !== duzenlenenId && k.tur === tur && k.sayac != null && (k.tarih + (k.saat || "")) > sinir
-      ) || null;
-    }
 
     // -----------------------------------------------------
     // LİTRE / FİYAT / TUTAR üçlüsü (Sürüm 0.3)
@@ -806,36 +778,12 @@
       ucluHesapla();
     }
 
-    // Km kutusunun altındaki açıklamayı günceller (önceki sayaç, gidilen fark)
+    // Km bölümü: LPG'de görünür (zorunlu), benzinde gizlenir (km LPG'den sayılır)
     function kmIpucuGoster() {
-      const ipucu = el("km-ipucu");
-      ipucu.classList.remove("hata");
-
-      if (seciliKmTuru() === "gidilen") {
-        el("f-km").placeholder = "Örn. 420";
-        ipucu.textContent = "Son dolumdan bu yana gidilen kilometre";
-        return;
-      }
-
-      el("f-km").placeholder = "Örn. 128450";
-      const onceki = oncekiSayacKaydi(seciliTur(), el("f-tarih").value, el("f-saat").value);
-      const sonraki = sonrakiSayacKaydi(seciliTur(), el("f-tarih").value, el("f-saat").value);
-      const sayac = kmOku();
-
-      if (sonraki && !isNaN(sayac) && sayac >= sonraki.sayac) {
-        ipucu.textContent = "Sayaç sonraki kayıttan (" + sonraki.sayac.toLocaleString("tr-TR") + ") küçük olmalı";
-        ipucu.classList.add("hata");
-      } else if (!onceki) {
-        ipucu.textContent = "Bu türde ilk sayaç kaydı. Fark bir sonraki dolumda hesaplanacak.";
-      } else if (isNaN(sayac)) {
-        ipucu.textContent = "Önceki sayaç: " + onceki.sayac.toLocaleString("tr-TR") + " km";
-      } else if (sayac <= onceki.sayac) {
-        ipucu.textContent = "Sayaç öncekinden (" + onceki.sayac.toLocaleString("tr-TR") + ") büyük olmalı";
-        ipucu.classList.add("hata");
-      } else {
-        ipucu.textContent = "Önceki: " + onceki.sayac.toLocaleString("tr-TR") +
-          " km → gidilen: " + (sayac - onceki.sayac).toLocaleString("tr-TR") + " km";
-      }
+      const lpgMi = seciliTur() === "LPG";
+      el("km-blok").hidden = !lpgMi;
+      el("km-ipucu").classList.remove("hata");
+      el("km-ipucu").textContent = "Bir önceki LPG dolumundan bu yana gidilen kilometre";
     }
 
     // Daha önce yazılmış istasyon adlarını öneri listesine koyar
@@ -890,13 +838,7 @@
         el("f-saat").value = kayit.saat || "";
         el("f-istasyon").value = kayit.istasyon || "";
         ucluDoldur(kayit.litre, kayit.tutar);
-        if (kayit.sayac != null) {
-          el("km-sayac").checked = true;
-          el("f-km").value = kayit.sayac;
-        } else {
-          el("km-gidilen").checked = true;
-          el("f-km").value = kayit.gidilenKm || "";
-        }
+        el("f-km").value = kayit.gidilenKm || "";
         kmIpucuGoster();
       }
 
@@ -953,7 +895,10 @@
       if (!tarih)                return hataGoster("Tarih girin.");
       if (!(litre > 0) || !(tutar > 0))
         return hataGoster("Litre, fiyat ve tutardan en az ikisini girin.");
-      if (isNaN(km) || km <= 0)  return hataGoster("Kilometre girin.");
+      if (tur === "LPG") {
+        if (isNaN(km) || km <= 0) return hataGoster("Gidilen km'yi girin.");
+        if (km > 5000) return hataGoster("Gidilen km çok büyük. Sayaç değerini değil, gidilen km'yi girin.");
+      }
 
       const kayit = {
         tur: tur,
@@ -963,19 +908,9 @@
         tutar: tutar,
         fiyat: fiyat > 0 ? fiyat : Math.round(tutar / litre * 100) / 100,   // litre fiyatı (₺/Lt)
         istasyon: el("f-istasyon").value.trim(),
-        sayac: null,
-        gidilenKm: null
+        sayac: null,                                  // artık kullanılmıyor (Sürüm 1.1)
+        gidilenKm: tur === "LPG" ? km : null          // benzinde km sorulmaz
       };
-
-      if (seciliKmTuru() === "sayac") {
-        const onceki = oncekiSayacKaydi(tur, tarih, saat);
-        const sonraki = sonrakiSayacKaydi(tur, tarih, saat);
-        if (onceki && km <= onceki.sayac) return hataGoster("Sayaç önceki kayıttan büyük olmalı.");
-        if (sonraki && km >= sonraki.sayac) return hataGoster("Sayaç sonraki kayıttan küçük olmalı.");
-        kayit.sayac = km;
-      } else {
-        kayit.gidilenKm = km;
-      }
 
       const basarili = duzenlenenId ? kayitGuncelle(duzenlenenId, kayit) : kayitEkle(kayit);
       if (basarili) {
@@ -999,18 +934,28 @@
         ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     }
 
-    // Bir kayıt için gidilen km: sayaç girildiyse önceki sayaçlı kayda göre fark,
-    // değilse elle girilen km. Hesaplanamıyorsa null.
-    function gidilenKmBul(kayit, siraliListe) {
-      if (kayit.gidilenKm != null) return kayit.gidilenKm;
-      if (kayit.sayac == null) return null;
-      const zaman = kayit.tarih + (kayit.saat || "");
-      let onceki = null;
-      for (const k of siraliListe) {
-        if (k.id === kayit.id) continue;
-        if (k.tur === kayit.tur && k.sayac != null && (k.tarih + (k.saat || "")) < zaman) onceki = k;
-      }
-      return onceki ? kayit.sayac - onceki.sayac : null;
+    // Bir kaydın gidilen km'si (yoksa null). Eski sayaçlı kayıtlar açılışta çevrilir.
+    function gidilenKmBul(kayit) {
+      return typeof kayit.gidilenKm === "number" ? kayit.gidilenKm : null;
+    }
+
+    // Eski sürümlerde sayaçla girilen kayıtları bir kereliğine gidilen km'ye çevirir:
+    // aynı türdeki bir önceki sayaçlı kayıtla farkı alınır, ilk sayaç kaydında km boş kalır.
+    function sayacKayitlariniCevir() {
+      const kayitlar = kayitlariOku();
+      if (!kayitlar.some(k => k.sayac != null)) return;
+      const sirali = [...kayitlar].sort((a, b) =>
+        (a.tarih + (a.saat || "")).localeCompare(b.tarih + (b.saat || "")));
+      const sonSayac = {};   // tür → son sayaç değeri
+      sirali.forEach(k => {
+        if (k.sayac == null) return;
+        if (k.gidilenKm == null && sonSayac[k.tur] != null && k.sayac > sonSayac[k.tur]) {
+          k.gidilenKm = k.sayac - sonSayac[k.tur];
+        }
+        sonSayac[k.tur] = k.sayac;
+      });
+      kayitlar.forEach(k => { k.sayac = null; });
+      kayitlariYaz(kayitlar);
     }
 
     function listeGuncelle() {
@@ -1047,7 +992,7 @@
         kayitlar.forEach(k => {
           const gun = +k.tarih.slice(8, 10);
           const fiyat = k.fiyat || (k.litre ? k.tutar / k.litre : 0);
-          const km = gidilenKmBul(k, sirali);
+          const km = k.tur === "LPG" ? gidilenKmBul(k) : null;   // benzinde km gösterilmez
           const altSatir = [tlBicim.format(k.litre) + " L", tlBicim.format(fiyat) + " ₺/L"];
           if (k.istasyon) altSatir.push(guvenli(k.istasyon));
 
@@ -1061,7 +1006,7 @@
               "</span>" +
               '<span class="satir-sag">' +
                 '<div class="satir-tutar">' + tlBicim.format(k.tutar) + " ₺</div>" +
-                '<div class="satir-km">' + (km != null ? km.toLocaleString("tr-TR") + " km" : "ilk sayaç") + "</div>" +
+                '<div class="satir-km">' + (km != null ? km.toLocaleString("tr-TR") + " km" : "") + "</div>" +
               "</span>" +
             "</button>";
         });
@@ -1205,6 +1150,7 @@
         });
 
         if (eklenen && !kayitlariYaz(mevcut)) return;
+        sayacKayitlariniCevir();
         hepsiniGuncelle();
         let mesaj = (eklenen ? "✓ " + eklenen + " kayıt eklendi." : "Yeni kayıt yok.") +
           (zatenVar ? " " + zatenVar + " kayıt zaten vardı." : "") +
@@ -1275,7 +1221,7 @@
 
       // Km başı maliyet
       const toplamTutar = topla(ayKayitlari, "tutar");
-      const lpgKm = lpg.reduce((t, k) => t + (gidilenKmBul(k, sirali) || 0), 0);
+      const lpgKm = lpg.reduce((t, k) => t + (gidilenKmBul(k) || 0), 0);
       if (lpgKm > 0) {
         el("ozet-km").textContent = tlBicim.format(toplamTutar / lpgKm) + " ₺/km";
         el("ozet-km-alt").textContent = lpgKm.toLocaleString("tr-TR") + " km · toplam " +
@@ -1283,7 +1229,7 @@
       } else {
         el("ozet-km").textContent = "— ₺/km";
         el("ozet-km-alt").textContent = ayKayitlari.length
-          ? "Bu ay LPG kayıtlarında km bilgisi yok. İlk sayaç kaydından sonraki dolumlarda hesaplanır."
+          ? "Bu ay LPG kayıtlarında gidilen km girilmemiş."
           : "Bu ayda kayıt yok";
       }
     }
@@ -1582,6 +1528,7 @@
     });
 
     // Uygulama açılınca
+    sayacKayitlariniCevir();
     formuSifirla();
     hepsiniGuncelle();
 
