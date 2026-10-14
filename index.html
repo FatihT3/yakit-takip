@@ -18,6 +18,9 @@
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161b26" media="(prefers-color-scheme: dark)">
   <title>Yakıt Takip</title>
+  <!-- Ana ekran simgesi (Sürüm 1.0) -->
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="icon" type="image/png" href="icon.png">
 
   <!-- ===================================================
        BÖLÜM 2: STİLLER (GÖRÜNÜM)
@@ -607,7 +610,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "0.8";
+    const SURUM = "1.0";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -1581,6 +1584,11 @@
     // Uygulama açılınca
     formuSifirla();
     hepsiniGuncelle();
+
+    // Çevrimdışı çalışma (Adım 8 / Sürüm 1.0): sw.js uygulamayı telefonda saklar
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+      navigator.serviceWorker.register("sw.js").catch(e => console.error("Çevrimdışı mod açılamadı:", e));
+    }
   </script>
 </body>
 </html>
