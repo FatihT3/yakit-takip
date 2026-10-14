@@ -384,6 +384,31 @@
     }
     .ay-secici button:disabled { opacity: .3; }
     .kart-alt { font-size: 13px; color: var(--soluk); margin-top: 6px; line-height: 1.5; }
+
+    /* ---------- FİŞ OKUMA (Adım 6 / Sürüm 0.7) ---------- */
+    .fis-dugmesi {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 12px;
+      border: 1.5px dashed var(--vurgu);
+      background: none;
+      color: var(--vurgu);
+    }
+    .fis-dugmesi svg { width: 22px; height: 22px; }
+    .fis-dugmesi:disabled { opacity: .5; }
+    .fis-durum { font-size: 13px; color: var(--soluk); min-height: 18px; margin-bottom: 10px; line-height: 1.4; }
+    .fis-durum.uyari { color: #d97706; }
+    .fis-durum.hata { color: #dc2626; }
+    /* Fişten doldurulan kutular kısa süre yeşil parlar */
+    .alan input.okundu { outline: 2px solid var(--vurgu); }
   </style>
 </head>
 <body>
@@ -446,6 +471,16 @@
       <button type="button" class="kapat" id="panel-kapat" aria-label="Kapat">✕</button>
     </div>
       <form id="kayit-formu" novalidate>
+
+        <!-- Fiş okuma (Adım 6 / Sürüm 0.7): fotoğraftan tarih, saat, litre, tutar, istasyon -->
+        <button type="button" class="fis-dugmesi" id="fis-dugmesi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>
+          </svg>
+          <span>Fişi tara</span>
+        </button>
+        <input type="file" id="fis-dosya" accept="image/*" hidden>
+        <div class="fis-durum" id="fis-durum"></div>
 
         <!-- Yakıt türü -->
         <div class="alan">
@@ -541,7 +576,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "0.6";
+    const SURUM = "0.7";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -724,13 +759,16 @@
     }
 
     // Formdan değerleri dışarıdan doldurmak için (fiş okuma ve düzenleme bunu kullanacak)
-    function ucluDoldur(litre, tutar) {
-      el("f-litre").value = litre ? paraBicim.format(litre) : "";
-      el("f-tutar").value = tutar ? paraBicim.format(tutar) : "";
-      el("f-fiyat").value = "";
-      elleYazilanlar = [];
-      if (litre) elleYazilanlar.push("f-litre");
-      if (tutar) elleYazilanlar.push("f-tutar");
+    // Verilen değerlerden en fazla ikisi kaynak olur (öncelik: litre+tutar, sonra fiyat+tutar)
+    function ucluDoldur(litre, tutar, fiyat) {
+      const degerler = { "f-litre": litre, "f-tutar": tutar, "f-fiyat": fiyat };
+      let kaynaklar = ["f-litre", "f-tutar", "f-fiyat"].filter(id => degerler[id] > 0).slice(0, 2);
+      UCLU.forEach(id => {
+        el(id).value = kaynaklar.includes(id) ? paraBicim.format(degerler[id]) : "";
+        el(id).classList.remove("oto");
+        el(id).closest(".alan").classList.remove("oto-alan");
+      });
+      elleYazilanlar = kaynaklar;
       ucluHesapla();
     }
 
@@ -786,6 +824,7 @@
       ["f-km", "f-istasyon"].forEach(id => el(id).value = "");
       ucluDoldur(null, null);
       el("form-hata").textContent = "";
+      fisDurum("");
       kmIpucuGoster();
       istasyonListesiDoldur();
     }
@@ -1084,6 +1123,328 @@
 
     el("ay-geri").addEventListener("click", () => { seciliAy = ayKaydir(seciliAy, -1); ozetGuncelle(); });
     el("ay-ileri").addEventListener("click", () => { seciliAy = ayKaydir(seciliAy, +1); ozetGuncelle(); });
+
+    // =====================================================
+    // FİŞ OKUMA (Adım 6 / Sürüm 0.7)
+    // Tesseract.js telefonda çalışır (sunucu yok). İlk kullanımda okuma aracı
+    // ve Türkçe dil dosyası internetten iner, sonra telefonda saklanır.
+    // Akış: fotoğraf → görüntü iyileştirme → okuma → metinden değerleri ayıklama
+    //       → değerler tutarsızsa ikinci ayarla bir kez daha okuma → forma doldurma
+    // =====================================================
+    const TESSERACT_ADRESI = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+    const DIL_DOSYASI_ADRESI = "https://cdn.jsdelivr.net/npm/@tesseract.js-data/tur@1.0.0/4.0.0_best_int";
+    let ocrIsci = null;        // okuma motoru (bir kez hazırlanır, sonra tekrar kullanılır)
+    let ocrAsama = "";         // ilerleme yazısı için
+
+    function fisDurum(mesaj, tur) {
+      const d = el("fis-durum");
+      d.textContent = mesaj;
+      d.className = "fis-durum" + (tur ? " " + tur : "");
+    }
+
+    // Dış betiği bir kez yükler
+    function betikYukle(adres) {
+      return new Promise((tamam, hata) => {
+        if (window.Tesseract) return tamam();
+        const b = document.createElement("script");
+        b.src = adres;
+        b.onload = () => tamam();
+        b.onerror = () => hata(new Error("betik yüklenemedi"));
+        document.head.appendChild(b);
+      });
+    }
+
+    async function ocrHazirla() {
+      if (ocrIsci) return ocrIsci;
+      fisDurum("Okuma aracı hazırlanıyor… (ilk seferde biraz sürer)");
+      await betikYukle(TESSERACT_ADRESI);
+      ocrIsci = await Tesseract.createWorker("tur", 1, {
+        langPath: DIL_DOSYASI_ADRESI,
+        logger: m => {
+          if (typeof m.progress !== "number") return;
+          const yuzde = Math.round(m.progress * 100);
+          if (m.status === "recognizing text") fisDurum(ocrAsama + " %" + yuzde);
+          else if (/load/.test(m.status)) fisDurum("Okuma aracı hazırlanıyor… %" + yuzde);
+        }
+      });
+      // Fiş tek blok metin gibi okunsun
+      await ocrIsci.setParameters({ tessedit_pageseg_mode: "6" });
+      return ocrIsci;
+    }
+
+    // Seçilen dosyayı resim olarak açar (iPhone fotoğrafın yönünü kendisi düzeltir)
+    function resimAc(dosya) {
+      return new Promise((tamam, hata) => {
+        const resim = new Image();
+        const adres = URL.createObjectURL(dosya);
+        resim.onload = () => { URL.revokeObjectURL(adres); tamam(resim); };
+        resim.onerror = () => { URL.revokeObjectURL(adres); hata(new Error("resim açılamadı")); };
+        resim.src = adres;
+      });
+    }
+
+    // Görüntü iyileştirme: küçült/büyüt, griye çevir, gölgeyi temizle (arka plan bölme),
+    // isteğe bağlı siyah-beyaz eşik. bulaniklik: arka plan tahmini için ölçek, esik: 0-255 ya da null
+    function fisGoruntusu(resim, bulaniklik, esik) {
+      const olcek = Math.min(2, 1600 / Math.max(resim.naturalWidth || resim.width, resim.naturalHeight || resim.height));
+      const G = Math.round((resim.naturalWidth || resim.width) * olcek);
+      const Y = Math.round((resim.naturalHeight || resim.height) * olcek);
+
+      const tuval = document.createElement("canvas");
+      tuval.width = G; tuval.height = Y;
+      const c = tuval.getContext("2d", { willReadFrequently: true });
+      c.drawImage(resim, 0, 0, G, Y);
+      const veri = c.getImageData(0, 0, G, Y);
+
+      // Arka planı tahmin et: resmi çok küçültüp geri büyüt (ucuz bulanıklaştırma)
+      const kucuk = document.createElement("canvas");
+      kucuk.width = Math.max(1, Math.round(G / bulaniklik));
+      kucuk.height = Math.max(1, Math.round(Y / bulaniklik));
+      const kc = kucuk.getContext("2d");
+      kc.imageSmoothingEnabled = true; kc.imageSmoothingQuality = "high";
+      kc.drawImage(tuval, 0, 0, kucuk.width, kucuk.height);
+      const arka = document.createElement("canvas");
+      arka.width = G; arka.height = Y;
+      const ac = arka.getContext("2d", { willReadFrequently: true });
+      ac.imageSmoothingEnabled = true; ac.imageSmoothingQuality = "high";
+      ac.drawImage(kucuk, 0, 0, G, Y);
+      const arkaVeri = ac.getImageData(0, 0, G, Y).data;
+
+      const p = veri.data;
+      for (let i = 0; i < p.length; i += 4) {
+        const gri = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+        const zemin = 0.299 * arkaVeri[i] + 0.587 * arkaVeri[i + 1] + 0.114 * arkaVeri[i + 2];
+        let n = Math.min(255, gri / (zemin + 1) * 255);
+        if (esik != null) n = n < esik ? 0 : 255;
+        p[i] = p[i + 1] = p[i + 2] = n;
+      }
+      c.putImageData(veri, 0, 0);
+      return tuval;
+    }
+
+    // --- Metinden değer ayıklama -------------------------------------------
+    // Okuma hatalarında rakam yerine çıkan harfleri düzelt (@ → 0 gibi)
+    function rakamDuzelt(t) {
+      return t.replace(/[@OoQD]/g, "0").replace(/[Il|]/g, "1");
+    }
+    // "1.154,00" / "1,184,00" / "28,450" → sayı (son ayırıcı ondalık kabul edilir)
+    function fisSayisi(t) {
+      const s = rakamDuzelt(t).replace(/\s/g, "");
+      const parca = s.split(/[.,]/);
+      if (parca.length < 2) return NaN;
+      const ondalik = parca.pop();
+      return parseFloat(parca.join("") + "." + ondalik);
+    }
+    // En çok tekrar eden değer (eşitlikte ilk görülen)
+    function enCokTekrar(liste) {
+      const say = new Map();
+      liste.forEach(x => say.set(x, (say.get(x) || 0) + 1));
+      let enIyi = null, enCok = 0;
+      say.forEach((n, x) => { if (n > enCok) { enCok = n; enIyi = x; } });
+      return enIyi;
+    }
+
+    const R = "[0-9@OoQD]";   // rakam ya da rakama benzeyen harf
+    const TUTAR_DESENI = new RegExp("\\*\\s*\\+?\\s*(" + R + "{1,3}(?:\\s*[.,]{1,2}\\s*" + R + "{3})*\\s*[.,]{1,2}\\s*" + R + "{2})", "g");
+    const LITRE_DESENI = new RegExp("(" + R + "{1,3}\\s*[.,]\\s*" + R + "{2,3})\\s*L\\s*[TtIl1L]?\\s*[Xx×*]\\s*(" + R + "{1,3}\\s*[.,]\\s*" + R + "{2})", "g");
+
+    // metinler: bir ya da daha fazla okuma sonucunun metni
+    function fisCozumle(metinler) {
+      const sonuc = { tarih: null, saat: null, litre: null, fiyat: null, tutar: null, tur: null, istasyon: null, emin: false };
+      const tutarlar = [], litreler = [], fiyatlar = [];
+      const gunler = [], aylar = [], yillar = [], saatler = [];
+      const buYil = new Date().getFullYear();
+
+      metinler.forEach(metin => {
+        const satirlar = metin.split(/\r?\n/);
+        satirlar.forEach(satir => {
+          // Tutarlar: "*" ile başlayan para değerleri (KDV satırı hariç). TOPLAM satırı iki oy.
+          if (!/KDV|TOPK/i.test(satir)) {
+            for (const m of satir.matchAll(TUTAR_DESENI)) {
+              const v = fisSayisi(m[1]);
+              if (v >= 10 && v <= 50000) {
+                tutarlar.push(Math.round(v * 100) / 100);
+                if (/TOPLAM/i.test(satir)) tutarlar.push(Math.round(v * 100) / 100);
+              }
+            }
+          }
+          // "28,450 LT X 40,56" → litre ve litre fiyatı
+          for (const m of satir.matchAll(LITRE_DESENI)) {
+            const l = fisSayisi(m[1]), f = fisSayisi(m[2]);
+            if (l > 0.5 && l < 200) litreler.push(l);
+            if (f > 5 && f < 200) fiyatlar.push(f);
+          }
+          // Tarih (gün-ay-yıl): her parça ayrı doğrulanır, geçersiz olanlar atılır
+          const duz = rakamDuzelt(satir);
+          const t = duz.match(/(?<!\d)(\d{1,2})\s*[-.\/ ]\s*(\d{1,2})\s*[-.\/ ]\s*(\d{4})(?!\d)/);
+          if (t) {
+            const g = +t[1], a = +t[2], y = +t[3];
+            if (g >= 1 && g <= 31) gunler.push(g);
+            if (a >= 1 && a <= 12) aylar.push(a);
+            if (y >= buYil - 1 && y <= buYil) yillar.push(y);
+          }
+          // Saat (SS:DD), tarih satırındakiler önce gelir
+          for (const s of duz.matchAll(/(\d{1,2})\s*:\s*(\d{2})(?!\d)/g)) {
+            const ss = +s[1], dd = +s[2];
+            if (ss <= 23 && dd <= 59) {
+              const deger = ikiHane(ss) + ":" + ikiHane(dd);
+              saatler.push(deger);
+              if (t) saatler.push(deger);
+            }
+          }
+        });
+
+        // Yakıt türü (lisans satırındaki "LPG-BAY" sayılmaz)
+        const buyuk = metin.toLocaleUpperCase("tr");
+        if (!sonuc.tur) {
+          if (/0T0\s*GAZ|OTO\s*GAZ|OTOGAZ/.test(rakamDuzelt(buyuk).replace(/0/g, "O")) ||
+              /\bLPG\b(?!\s*-?\s*BAY)/.test(buyuk)) sonuc.tur = "LPG";
+          else if (/BENZ[İI]N|KUR[ŞS]UNSUZ|V\s*\/?\s*MAX|EXCELL|ULTIMATE/.test(buyuk)) sonuc.tur = "BENZIN";
+        }
+
+        // İstasyon: fişin en üstündeki, çoğu büyük harfli kelimelerden oluşan ilk satır
+        if (!sonuc.istasyon) {
+          for (const satir of satirlar.slice(0, 4)) {
+            const kelimeler = satir.split(/\s+/).filter(k => /^[A-ZÇĞİÖŞÜ&.\-]{2,}$/.test(k));
+            if (kelimeler.length >= 2 && kelimeler.join("").length >= 6) {
+              sonuc.istasyon = kelimeler.join(" ")
+                .toLocaleLowerCase("tr")
+                .replace(/(^|\s)(\S)/g, (_, b, h) => b + h.toLocaleUpperCase("tr"))
+                .slice(0, 32);
+              break;
+            }
+          }
+        }
+      });
+
+      // Tarih
+      const g = enCokTekrar(gunler), a = enCokTekrar(aylar), y = enCokTekrar(yillar);
+      if (g && a && y) {
+        const tarih = y + "-" + ikiHane(a) + "-" + ikiHane(g);
+        const yarin = new Date(); yarin.setDate(yarin.getDate() + 1);
+        if (new Date(tarih) <= yarin) sonuc.tarih = tarih;
+      }
+      sonuc.saat = enCokTekrar(saatler);
+
+      // Tutar: en çok tekrar eden. Litre × fiyat ile çapraz kontrol.
+      const T = enCokTekrar(tutarlar);
+      let enIyi = null;
+      litreler.forEach(l => fiyatlar.forEach(f => {
+        const hedef = T || l * f;
+        const hata = Math.abs(l * f - hedef) / hedef;
+        if (!enIyi || hata < enIyi.hata) enIyi = { l, f, hata };
+      }));
+
+      if (T) {
+        sonuc.tutar = T;
+        if (enIyi && enIyi.hata <= 0.006) {
+          // Tutarlı: fiyat güvenilir, litre tutar ÷ fiyat'tan (okuma hatalarını düzeltir)
+          sonuc.fiyat = enIyi.f;
+          sonuc.litre = Math.round(T / enIyi.f * 1000) / 1000;
+          sonuc.emin = true;
+        } else if (fiyatlar.length) {
+          // Tutarsız: makul litre veren fiyatı al, kullanıcı kontrol etsin
+          const f = fiyatlar.find(f => T / f > 1 && T / f < 150);
+          if (f) { sonuc.fiyat = f; sonuc.litre = Math.round(T / f * 1000) / 1000; }
+        }
+      } else if (enIyi) {
+        sonuc.litre = enIyi.l;
+        sonuc.fiyat = enIyi.f;
+        sonuc.tutar = Math.round(enIyi.l * enIyi.f * 100) / 100;
+      }
+      return sonuc;
+    }
+
+    // İki metnin benzerliği (0-1): harf ikilileri üzerinden (Dice katsayısı)
+    function benzerlik(a, b) {
+      const sade = t => t.toLocaleUpperCase("tr").replace(/[^A-ZÇĞİÖŞÜ]/g, "");
+      const ikililer = t => { const l = []; for (let i = 0; i < t.length - 1; i++) l.push(t.slice(i, i + 2)); return l; };
+      const x = ikililer(sade(a)), y = ikililer(sade(b));
+      if (!x.length || !y.length) return 0;
+      const kalan = [...y];
+      let ortak = 0;
+      x.forEach(c => { const i = kalan.indexOf(c); if (i >= 0) { ortak++; kalan.splice(i, 1); } });
+      return 2 * ortak / (x.length + y.length);
+    }
+
+    // Okunan istasyon adı daha önce kaydedilmiş bir ada benziyorsa o adı kullan
+    // (fiş başlığı genelde bozuk okunur; kullanıcı bir kez düzeltince hep doğru gelir)
+    function istasyonEslestir(okunan) {
+      if (!okunan) return null;
+      const adlar = [...new Set(kayitlariOku().map(k => k.istasyon).filter(Boolean))];
+      let enIyi = null, enYuksek = 0;
+      adlar.forEach(ad => { const b = benzerlik(okunan, ad); if (b > enYuksek) { enYuksek = b; enIyi = ad; } });
+      return enYuksek >= 0.3 ? enIyi : okunan;
+    }
+
+    // Okunan değerleri forma yazar ve neyin okunup neyin okunamadığını söyler
+    function fisiFormaYaz(s) {
+      const doldurulan = [];
+      const isaretle = id => {
+        el(id).classList.add("okundu");
+        setTimeout(() => el(id).classList.remove("okundu"), 2500);
+      };
+      if (s.tur) {
+        el(s.tur === "BENZIN" ? "tur-benzin" : "tur-lpg").checked = true;
+      }
+      if (s.tarih) { el("f-tarih").value = s.tarih; isaretle("f-tarih"); doldurulan.push("tarih"); }
+      if (s.saat)  { el("f-saat").value = s.saat;   isaretle("f-saat");  doldurulan.push("saat"); }
+      if (s.tutar) {
+        ucluDoldur(s.litre, s.tutar, s.fiyat);
+        UCLU.forEach(id => { if (el(id).value) isaretle(id); });
+        if (s.litre) doldurulan.push("litre");
+        doldurulan.push("tutar");
+      }
+      if (s.istasyon && !el("f-istasyon").value.trim()) {
+        el("f-istasyon").value = istasyonEslestir(s.istasyon); isaretle("f-istasyon"); doldurulan.push("istasyon");
+      }
+      kmIpucuGoster();
+
+      const eksik = ["tarih", "saat", "litre", "tutar"].filter(x => !doldurulan.includes(x));
+      if (!doldurulan.length) {
+        fisDurum("Fişten bir şey okunamadı. Fişi düz bir zeminde, yakından ve gölgesiz çekmeyi dene.", "hata");
+      } else if (eksik.length || !s.emin) {
+        fisDurum("Okundu: " + doldurulan.join(", ") +
+          (eksik.length ? ". Okunamadı: " + eksik.join(", ") : "") +
+          ". Değerleri fişle karşılaştır.", "uyari");
+      } else {
+        fisDurum("✓ Okundu: " + doldurulan.join(", ") + ". Kilometreyi girip kaydet.");
+      }
+    }
+
+    el("fis-dugmesi").addEventListener("click", () => el("fis-dosya").click());
+
+    el("fis-dosya").addEventListener("change", async () => {
+      const dosya = el("fis-dosya").files[0];
+      el("fis-dosya").value = "";            // aynı fotoğraf tekrar seçilebilsin
+      if (!dosya) return;
+      const dugme = el("fis-dugmesi");
+      dugme.disabled = true;
+      try {
+        const resim = await resimAc(dosya);
+        const isci = await ocrHazirla();
+
+        // 1. okuma: gölge temizlenmiş, siyah-beyaz
+        ocrAsama = "Fiş okunuyor…";
+        const metinler = [(await isci.recognize(fisGoruntusu(resim, 30, 200))).data.text];
+        let sonuc = fisCozumle(metinler);
+
+        // Değerler tutarsız ya da eksikse 2. okuma: gri tonlu, farklı ayar
+        if (!sonuc.emin || !sonuc.tarih || !sonuc.saat) {
+          ocrAsama = "Daha dikkatli okunuyor…";
+          metinler.push((await isci.recognize(fisGoruntusu(resim, 15, null))).data.text);
+          sonuc = fisCozumle(metinler);
+        }
+        fisiFormaYaz(sonuc);
+      } catch (e) {
+        console.error(e);
+        fisDurum(e.message === "betik yüklenemedi"
+          ? "Okuma aracı indirilemedi. İnternet bağlantını kontrol edip tekrar dene."
+          : "Fiş okunamadı. Tekrar dene ya da değerleri elle gir.", "hata");
+      } finally {
+        dugme.disabled = false;
+      }
+    });
 
     // Uygulama açılınca
     formuSifirla();
