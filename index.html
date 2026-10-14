@@ -566,7 +566,7 @@
         <!-- Gidilen km: sadece LPG'de sorulur, benzinde gizlenir (Sürüm 1.1) -->
         <div class="alan" id="km-blok">
           <label for="f-km">Gidilen km</label>
-          <input type="text" inputmode="numeric" id="f-km" placeholder="Örn. 420">
+          <input type="text" inputmode="decimal" id="f-km" placeholder="Örn. 420">
           <div class="ipucu" id="km-ipucu"></div>
         </div>
 
@@ -602,7 +602,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "1.1";
+    const SURUM = "1.2";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -704,8 +704,14 @@
     }
 
     // Kilometre kutusundaki rakamları tam sayıya çevirir ("128.450" → 128450)
+    // Gidilen km: ondalıklı olabilir ("281,1" → 281.1) (Sürüm 1.2)
     function kmOku() {
-      return parseInt(el("f-km").value.replace(/\D/g, ""), 10);
+      const km = sayiyaCevir(el("f-km").value);
+      return isNaN(km) ? NaN : Math.round(km * 10) / 10;
+    }
+    // km'yi Türkçe yazar: 281.1 → "281,1", 5304.1 → "5.304,1"
+    function kmYazisi(km) {
+      return km.toLocaleString("tr-TR", { maximumFractionDigits: 1 });
     }
 
     function seciliTur()    { return form.querySelector('input[name="tur"]:checked').value; }
@@ -838,7 +844,7 @@
         el("f-saat").value = kayit.saat || "";
         el("f-istasyon").value = kayit.istasyon || "";
         ucluDoldur(kayit.litre, kayit.tutar);
-        el("f-km").value = kayit.gidilenKm || "";
+        el("f-km").value = kayit.gidilenKm ? kmYazisi(kayit.gidilenKm).replace(/\./g, "") : "";
         kmIpucuGoster();
       }
 
@@ -1006,7 +1012,7 @@
               "</span>" +
               '<span class="satir-sag">' +
                 '<div class="satir-tutar">' + tlBicim.format(k.tutar) + " ₺</div>" +
-                '<div class="satir-km">' + (km != null ? km.toLocaleString("tr-TR") + " km" : "") + "</div>" +
+                '<div class="satir-km">' + (km != null ? kmYazisi(km) + " km" : "") + "</div>" +
               "</span>" +
             "</button>";
         });
@@ -1136,6 +1142,10 @@
         gelen.forEach(k => {
           if (!gecerliKayit(k)) { hatali++; return; }
           if (kimlikler.has(k.id)) { zatenVar++; return; }
+          // Aynı dolum başka yoldan (ör. fişten) zaten girilmişse ekleme: aynı tür + tarih + litre
+          if (mevcut.some(m => m.tur === k.tur && m.tarih === k.tarih && Math.abs(m.litre - k.litre) < 0.02)) {
+            zatenVar++; return;
+          }
           // Sadece bilinen alanları al
           mevcut.push({
             id: k.id, tur: k.tur, tarih: k.tarih, saat: typeof k.saat === "string" ? k.saat : "",
@@ -1224,7 +1234,7 @@
       const lpgKm = lpg.reduce((t, k) => t + (gidilenKmBul(k) || 0), 0);
       if (lpgKm > 0) {
         el("ozet-km").textContent = tlBicim.format(toplamTutar / lpgKm) + " ₺/km";
-        el("ozet-km-alt").textContent = lpgKm.toLocaleString("tr-TR") + " km · toplam " +
+        el("ozet-km-alt").textContent = kmYazisi(lpgKm) + " km · toplam " +
           tlBicim.format(toplamTutar) + " ₺ (LPG + benzin)";
       } else {
         el("ozet-km").textContent = "— ₺/km";
