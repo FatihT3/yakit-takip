@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+
+  <!-- ===================================================
+       BÖLÜM 1: iPhone / PWA AYARLARI
+       Ana ekrana eklenince tam ekran açılması için gereken etiketler
+       =================================================== -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <!-- Durum çubuğu (saat, pil) uygulamanın üstünde şeffaf görünsün -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Ana ekranda simgenin altında görünecek isim -->
+  <meta name="apple-mobile-web-app-title" content="Yakıt">
+  <meta name="theme-color" content="#111827">
+  <title>Yakıt Takip</title>
+
+  <!-- ===================================================
+       BÖLÜM 2: STİLLER (GÖRÜNÜM)
+       =================================================== -->
+  <style>
+    /* --- Renkler: açık tema --- */
+    :root {
+      --arkaplan: #f3f4f6;
+      --kart: #ffffff;
+      --yazi: #111827;
+      --soluk: #6b7280;
+      --cizgi: #e5e7eb;
+      --lpg: #2563eb;      /* LPG için mavi */
+      --benzin: #ea580c;   /* Benzin için turuncu */
+      --vurgu: #059669;    /* Genel vurgu (yeşil) */
+    }
+
+    /* --- Renkler: telefon karanlık moddaysa koyu tema --- */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --arkaplan: #0b0f17;
+        --kart: #161b26;
+        --yazi: #f3f4f6;
+        --soluk: #9ca3af;
+        --cizgi: #263041;
+        --lpg: #60a5fa;
+        --benzin: #fb923c;
+        --vurgu: #34d399;
+        --buton-yazi: #052e22;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: var(--arkaplan);
+      color: var(--yazi);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent; /* dokununca gri parlama olmasın */
+    }
+
+    /* Üst başlık: çentik (notch) altında kalmasın diye safe-area boşluğu */
+    header {
+      padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+      background: var(--kart);
+      border-bottom: 1px solid var(--cizgi);
+    }
+    header h1 { font-size: 20px; }
+    header small { color: var(--soluk); font-size: 12px; }
+
+    /* Sayfa içeriği: alttaki sekme çubuğunun arkasında kalmasın */
+    main {
+      padding: 16px 16px calc(env(safe-area-inset-bottom) + 90px);
+    }
+
+    /* Sekmelerden sadece aktif olan görünür */
+    .sayfa { display: none; }
+    .sayfa.aktif { display: block; }
+
+    .kart {
+      background: var(--kart);
+      border: 1px solid var(--cizgi);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .kart h2 { font-size: 15px; color: var(--soluk); font-weight: 500; margin-bottom: 6px; }
+    .kart .deger { font-size: 28px; font-weight: 700; }
+    .lpg-renk { color: var(--lpg); }
+    .benzin-renk { color: var(--benzin); }
+    .vurgu-renk { color: var(--vurgu); }
+    .bilgi { color: var(--soluk); font-size: 14px; line-height: 1.5; }
+
+    /* Alt sekme çubuğu (iPhone ana ekran çizgisinin üstünde dursun) */
+    nav {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      display: flex;
+      background: var(--kart);
+      border-top: 1px solid var(--cizgi);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    nav button {
+      flex: 1;
+      background: none;
+      border: none;
+      padding: 10px 0 8px;
+      color: var(--soluk);
+      font-size: 12px;
+      font-family: inherit;
+    }
+    nav button .ikon { display: block; font-size: 22px; margin-bottom: 2px; }
+    nav button.aktif { color: var(--vurgu); font-weight: 600; }
+
+    /* ---------- KAYIT FORMU (Adım 3) ---------- */
+    .alan { margin-bottom: 14px; }
+    .alan label { display: block; font-size: 13px; color: var(--soluk); margin-bottom: 6px; }
+    .alan input {
+      width: 100%;
+      min-height: 46px;
+      font-size: 16px;            /* 16px'ten küçük olursa iPhone kutuya yakınlaştırır */
+      padding: 12px;
+      border: 1px solid var(--cizgi);
+      border-radius: 10px;
+      background: var(--arkaplan);
+      color: var(--yazi);
+      font-family: inherit;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .alan input::-webkit-date-and-time-value { text-align: left; }
+    .alan input:focus { outline: 2px solid var(--vurgu); border-color: transparent; }
+
+    /* İki kutuyu yan yana koymak için (Tarih-Saat, Litre-Tutar) */
+    .yan-yana { display: flex; gap: 10px; }
+    .yan-yana .alan { flex: 1; min-width: 0; }
+
+    /* LPG/Benzin ve Sayaç/Gidilen km seçim düğmeleri */
+    .secim {
+      display: flex;
+      background: var(--arkaplan);
+      border: 1px solid var(--cizgi);
+      border-radius: 10px;
+      padding: 3px;
+    }
+    .secim input { display: none; }
+    .secim label {
+      flex: 1;
+      text-align: center;
+      padding: 9px 0;
+      margin: 0;
+      border-radius: 8px;
+      font-size: 15px;
+      color: var(--soluk);
+    }
+    .secim input:checked + label {
+      background: var(--kart);
+      color: var(--yazi);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
+    }
+    #tur-lpg:checked + label { color: var(--lpg); }
+    #tur-benzin:checked + label { color: var(--benzin); }
+
+    /* Kutuların altındaki küçük açıklama / hata yazıları */
+    .ipucu { font-size: 13px; color: var(--soluk); margin-top: 6px; min-height: 18px; }
+    .ipucu.hata { color: #dc2626; }
+
+    .buton {
+      width: 100%;
+      padding: 14px;
+      font-size: 17px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: var(--vurgu);
+      color: var(--buton-yazi, #fff);
+      font-family: inherit;
+    }
+    .buton:active { opacity: .8; }
+
+    /* "Kaydedildi" gibi kısa süreli bildirim balonu */
+    .bildirim {
+      position: fixed;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom) + 80px);
+      transform: translateX(-50%);
+      background: var(--yazi);
+      color: var(--arkaplan);
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+    }
+    .bildirim.goster { opacity: 1; z-index: 30; }
+
+    /* ---------- AÇILIR EKLEME PANELİ (Sürüm 0.3) ---------- */
+    /* Arkadaki karartma */
+    .perde {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .45);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+      z-index: 10;
+    }
+    .perde.acik { opacity: 1; pointer-events: auto; }
+
+    /* Alttan kayarak açılan panel */
+    .panel {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      max-height: calc(100% - env(safe-area-inset-top) - 16px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: var(--kart);
+      border-radius: 18px 18px 0 0;
+      padding: 8px 16px calc(env(safe-area-inset-bottom) + 16px);
+      transform: translateY(105%);
+      transition: transform .3s ease;
+      z-index: 20;
+    }
+    .panel.acik { transform: translateY(0); }
+    .panel-ust {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0 14px;
+    }
+    .panel-ust h2 { font-size: 18px; }
+    .kapat {
+      background: var(--arkaplan);
+      border: none;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      font-size: 16px;
+      color: var(--soluk);
+    }
+    /* Panel açıkken arkadaki sayfa kaymasın */
+    body.panel-acik { overflow: hidden; }
+
+    /* Sağ altta, sekme çubuğunun üstünde yüzen "Ekle" düğmesi (Sürüm 0.4) */
+    .ekle-dugmesi {
+      position: fixed;
+      right: 20px;
+      bottom: calc(env(safe-area-inset-bottom) + 80px);
+      width: 58px; height: 58px;
+      border-radius: 50%;
+      border: none;
+      background: var(--vurgu);
+      color: var(--buton-yazi, #fff);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .3);
+      z-index: 5;
+      transition: transform .15s;
+    }
+    .ekle-dugmesi:active { transform: scale(.92); }
+    .ekle-dugmesi svg { width: 26px; height: 26px; }
+
+    /* Litre / fiyat / tutar: üç kutu yan yana */
+    .uclu { display: flex; gap: 8px; }
+    .uclu .alan { flex: 1; min-width: 0; }
+    .uclu .alan input { padding: 12px 8px; }
+
+    /* Otomatik hesaplanan kutu soluk görünür, etiketinde "oto" yazar */
+    .alan input.oto { color: var(--soluk); border-style: dashed; }
+    .oto-etiket {
+      display: none;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--vurgu);
+      margin-left: 4px;
+    }
+    .alan.oto-alan .oto-etiket { display: inline; }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================
+       BÖLÜM 3: ÜST BAŞLIK
+       =================================================== -->
+  <header>
+    <h1 id="baslik">Özet</h1>
+    <!-- Sürüm numarası: güncellemenin telefona gelip gelmediğini anlamak için -->
+    <small id="surum"></small>
+  </header>
+
+  <main>
+    <!-- ===================================================
+         BÖLÜM 4: SAYFA — ÖZET (ana sayfa)
+         =================================================== -->
+    <section class="sayfa aktif" id="sayfa-ozet">
+      <div class="kart">
+        <h2>Bu ay LPG</h2>
+        <div class="deger lpg-renk">— ₺</div>
+      </div>
+      <div class="kart">
+        <h2>Bu ay benzin</h2>
+        <div class="deger benzin-renk">— ₺</div>
+      </div>
+      <div class="kart">
+        <h2>Km başı toplam maliyet</h2>
+        <div class="deger vurgu-renk">— ₺/km</div>
+      </div>
+      <p class="bilgi" id="kayit-sayisi"></p>
+    </section>
+
+    <!-- ===================================================
+         BÖLÜM 6: SAYFA — KAYITLAR (liste)
+         =================================================== -->
+    <section class="sayfa" id="sayfa-kayitlar">
+      <div class="kart">
+        <p class="bilgi">Kayıt listesi Adım 4'te eklenecek.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================================================
+       BÖLÜM 5: AÇILIR PANEL — YENİ KAYIT
+       Alttaki "Ekle" düğmesine basınca alttan kayarak açılır
+       =================================================== -->
+  <div class="perde" id="perde"></div>
+  <div class="panel" id="ekle-paneli" role="dialog" aria-modal="true" aria-labelledby="panel-baslik">
+    <div class="panel-ust">
+      <h2 id="panel-baslik">Yeni Kayıt</h2>
+      <button type="button" class="kapat" id="panel-kapat" aria-label="Kapat">✕</button>
+    </div>
+      <form id="kayit-formu" novalidate>
+
+        <!-- Yakıt türü -->
+        <div class="alan">
+          <div class="secim">
+            <input type="radio" name="tur" id="tur-lpg" value="LPG" checked>
+            <label for="tur-lpg">LPG</label>
+            <input type="radio" name="tur" id="tur-benzin" value="BENZIN">
+            <label for="tur-benzin">Benzin</label>
+          </div>
+        </div>
+
+        <!-- Tarih ve saat (açılışta şu anki zamanla dolar) -->
+        <div class="yan-yana">
+          <div class="alan">
+            <label for="f-tarih">Tarih</label>
+            <input type="date" id="f-tarih">
+          </div>
+          <div class="alan">
+            <label for="f-saat">Saat</label>
+            <input type="time" id="f-saat">
+          </div>
+        </div>
+
+        <!-- Litre, litre fiyatı, tutar: herhangi ikisi girilince üçüncüsü hesaplanır.
+             Virgül de nokta da kabul edilir. -->
+        <div class="uclu">
+          <div class="alan">
+            <label for="f-litre">Litre<span class="oto-etiket">OTO</span></label>
+            <input type="text" inputmode="decimal" id="f-litre" placeholder="0,00">
+          </div>
+          <div class="alan">
+            <label for="f-fiyat">₺ / Lt<span class="oto-etiket">OTO</span></label>
+            <input type="text" inputmode="decimal" id="f-fiyat" placeholder="0,00">
+          </div>
+          <div class="alan">
+            <label for="f-tutar">Tutar ₺<span class="oto-etiket">OTO</span></label>
+            <input type="text" inputmode="decimal" id="f-tutar" placeholder="0,00">
+          </div>
+        </div>
+        <div class="ipucu" id="uclu-ipucu" style="margin-top:-8px;margin-bottom:10px">Herhangi ikisini gir, üçüncüsü hesaplanır.</div>
+
+        <!-- İstasyon: daha önce yazılanlar öneri olarak çıkar -->
+        <div class="alan">
+          <label for="f-istasyon">İstasyon</label>
+          <input type="text" id="f-istasyon" list="istasyon-listesi" autocomplete="off" placeholder="Örn. İstanbul">
+          <datalist id="istasyon-listesi"></datalist>
+        </div>
+
+        <!-- Kilometre: sayaç değeri mi, gidilen km mi? -->
+        <div class="alan">
+          <label>Kilometre</label>
+          <div class="secim">
+            <input type="radio" name="kmTuru" id="km-sayac" value="sayac" checked>
+            <label for="km-sayac">Sayaç</label>
+            <input type="radio" name="kmTuru" id="km-gidilen" value="gidilen">
+            <label for="km-gidilen">Gidilen km</label>
+          </div>
+        </div>
+        <div class="alan">
+          <input type="text" inputmode="numeric" id="f-km" placeholder="Örn. 128450">
+          <div class="ipucu" id="km-ipucu"></div>
+        </div>
+
+        <button type="submit" class="buton">Kaydet</button>
+        <div class="ipucu hata" id="form-hata"></div>
+      </form>
+  </div>
+
+  <!-- ===================================================
+       BÖLÜM 7: ALT SEKME ÇUBUĞU
+       data-sayfa = açılacak sayfanın id'sinin sonu
+       =================================================== -->
+  <nav>
+    <button class="aktif" data-sayfa="ozet" data-baslik="Özet">
+      <span class="ikon">📊</span>Özet
+    </button>
+    <button data-sayfa="kayitlar" data-baslik="Kayıtlar">
+      <span class="ikon">📋</span>Kayıtlar
+    </button>
+  </nav>
+
+  <!-- Yüzen "Ekle" düğmesi (sağ alt köşe) -->
+  <button class="ekle-dugmesi" id="ekle-dugmesi" type="button" aria-label="Yeni kayıt ekle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+  </button>
+
+  <!-- ===================================================
+       BÖLÜM 8: JAVASCRIPT (UYGULAMA MANTIĞI)
+       =================================================== -->
+  <script>
+    // --- Sürüm: her güncellemede bu numarayı artıracağız ---
+    const SURUM = "0.4.1";
+    document.getElementById("surum").textContent = "Sürüm " + SURUM;
+
+    // --- Sekme geçişi ---
+    // Alttaki bir butona basılınca ilgili sayfayı gösterir, diğerlerini gizler
+    function sayfaAc(ad, baslik) {
+      document.querySelectorAll(".sayfa").forEach(s => s.classList.remove("aktif"));
+      document.getElementById("sayfa-" + ad).classList.add("aktif");
+
+      document.querySelectorAll("nav button").forEach(b => {
+        b.classList.toggle("aktif", b.dataset.sayfa === ad);
+      });
+
+      document.getElementById("baslik").textContent = baslik;
+      window.scrollTo(0, 0);
+    }
+
+    // Sadece sayfa açan düğmeler (Özet, Kayıtlar). "Ekle" paneli ayrıca açılır.
+    document.querySelectorAll("nav button[data-sayfa]").forEach(buton => {
+      buton.addEventListener("click", () => {
+        sayfaAc(buton.dataset.sayfa, buton.dataset.baslik);
+      });
+    });
+
+    // =====================================================
+    // VERİ KATMANI (Adım 2)
+    // Kayıtlar telefonda localStorage içinde JSON olarak durur
+    // =====================================================
+    const DEPO_ANAHTARI = "yakitKayitlari_v1";
+
+    // Tüm kayıtları okur (hiç yoksa boş liste döner)
+    function kayitlariOku() {
+      try {
+        const veri = localStorage.getItem(DEPO_ANAHTARI);
+        return veri ? JSON.parse(veri) : [];
+      } catch (e) {
+        console.error("Kayıtlar okunamadı:", e);
+        return [];
+      }
+    }
+
+    // Tüm kayıtları yazar (başarılıysa true döner)
+    function kayitlariYaz(kayitlar) {
+      try {
+        localStorage.setItem(DEPO_ANAHTARI, JSON.stringify(kayitlar));
+        return true;
+      } catch (e) {
+        alert("Kayıt yapılamadı. Telefonda yer kalmamış olabilir.");
+        return false;
+      }
+    }
+
+    // Yeni kayıt ekler (benzersiz id'yi kendisi verir)
+    function kayitEkle(kayit) {
+      const kayitlar = kayitlariOku();
+      kayit.id = Date.now().toString();
+      kayitlar.push(kayit);
+      return kayitlariYaz(kayitlar);
+    }
+
+    // Var olan kaydı günceller (Adım 4'te düzenleme için kullanılacak)
+    function kayitGuncelle(id, yeniBilgiler) {
+      const kayitlar = kayitlariOku();
+      const sira = kayitlar.findIndex(k => k.id === id);
+      if (sira === -1) return false;
+      kayitlar[sira] = { ...kayitlar[sira], ...yeniBilgiler, id: id };
+      return kayitlariYaz(kayitlar);
+    }
+
+    // Kaydı siler (Adım 4'te kullanılacak)
+    function kayitSil(id) {
+      return kayitlariYaz(kayitlariOku().filter(k => k.id !== id));
+    }
+
+    // Kayıtları tarih + saate göre eskiden yeniye sıralı verir
+    function siraliKayitlar() {
+      return kayitlariOku().sort((a, b) =>
+        (a.tarih + (a.saat || "")).localeCompare(b.tarih + (b.saat || ""))
+      );
+    }
+
+    // Safari'den verileri kendiliğinden silmemesini rica et
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist();
+    }
+
+    // =====================================================
+    // KAYIT FORMU (Adım 3)
+    // =====================================================
+    const el = id => document.getElementById(id);
+    const form = el("kayit-formu");
+    const paraBicim = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // "32,15" veya "32.15" → 32.15   |   "1.234,56" → 1234.56
+    function sayiyaCevir(metin) {
+      if (!metin) return NaN;
+      let s = metin.trim().replace(/\s/g, "");
+      if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+      return parseFloat(s);
+    }
+
+    // Kilometre kutusundaki rakamları tam sayıya çevirir ("128.450" → 128450)
+    function kmOku() {
+      return parseInt(el("f-km").value.replace(/\D/g, ""), 10);
+    }
+
+    function seciliTur()    { return form.querySelector('input[name="tur"]:checked').value; }
+    function seciliKmTuru() { return form.querySelector('input[name="kmTuru"]:checked').value; }
+    function ikiHane(n)     { return String(n).padStart(2, "0"); }
+
+    // Aynı türdeki, verilen tarih/saatten ÖNCEKİ en son sayaçlı kaydı bulur
+    function oncekiSayacKaydi(tur, tarih, saat) {
+      const sinir = tarih + (saat || "");
+      const adaylar = siraliKayitlar().filter(k =>
+        k.tur === tur && k.sayac != null && (k.tarih + (k.saat || "")) < sinir
+      );
+      return adaylar.length ? adaylar[adaylar.length - 1] : null;
+    }
+
+    // -----------------------------------------------------
+    // LİTRE / FİYAT / TUTAR üçlüsü (Sürüm 0.3)
+    // Kural: en son ELLE yazılan iki kutu "kaynak"tır, üçüncüsü hesaplanır.
+    // Hesaplanan kutuya elle yazılırsa o da kaynak olur; en eski kaynak
+    // hesaplanana döner. Böylece üç değer hiçbir zaman çelişmez.
+    // -----------------------------------------------------
+    const UCLU = ["f-litre", "f-fiyat", "f-tutar"];
+    let elleYazilanlar = [];   // elle yazılan kutular, eskiden yeniye
+
+    // Bir kutu elle değiştirilince çağrılır
+    function ucluElleDegisti(id) {
+      elleYazilanlar = elleYazilanlar.filter(x => x !== id);
+      // Kutu boşaltıldıysa artık kaynak değildir
+      if (el(id).value.trim() !== "") elleYazilanlar.push(id);
+      // Sadece son ikisi kaynak sayılır
+      if (elleYazilanlar.length > 2) elleYazilanlar = elleYazilanlar.slice(-2);
+      el(id).classList.remove("oto");
+      el(id).closest(".alan").classList.remove("oto-alan");
+      ucluHesapla();
+    }
+
+    // Kaynak iki kutudan üçüncüsünü hesaplar ve "oto" olarak işaretler
+    function ucluHesapla() {
+      // Önce önceden hesaplanmış kutuyu temizle
+      UCLU.forEach(id => {
+        if (el(id).classList.contains("oto")) {
+          el(id).value = "";
+          el(id).classList.remove("oto");
+          el(id).closest(".alan").classList.remove("oto-alan");
+        }
+      });
+      if (elleYazilanlar.length < 2) return;
+
+      const hedef = UCLU.find(id => !elleYazilanlar.includes(id));
+      const litre = sayiyaCevir(el("f-litre").value);
+      const fiyat = sayiyaCevir(el("f-fiyat").value);
+      const tutar = sayiyaCevir(el("f-tutar").value);
+
+      let sonuc = NaN;
+      if (hedef === "f-tutar") sonuc = litre * fiyat;
+      if (hedef === "f-litre") sonuc = fiyat > 0 ? tutar / fiyat : NaN;
+      if (hedef === "f-fiyat") sonuc = litre > 0 ? tutar / litre : NaN;
+
+      if (isFinite(sonuc) && sonuc > 0) {
+        el(hedef).value = paraBicim.format(sonuc);
+        el(hedef).classList.add("oto");
+        el(hedef).closest(".alan").classList.add("oto-alan");
+      }
+    }
+
+    // Formdan değerleri dışarıdan doldurmak için (fiş okuma ve düzenleme bunu kullanacak)
+    function ucluDoldur(litre, tutar) {
+      el("f-litre").value = litre ? paraBicim.format(litre) : "";
+      el("f-tutar").value = tutar ? paraBicim.format(tutar) : "";
+      el("f-fiyat").value = "";
+      elleYazilanlar = [];
+      if (litre) elleYazilanlar.push("f-litre");
+      if (tutar) elleYazilanlar.push("f-tutar");
+      ucluHesapla();
+    }
+
+    // Km kutusunun altındaki açıklamayı günceller (önceki sayaç, gidilen fark)
+    function kmIpucuGoster() {
+      const ipucu = el("km-ipucu");
+      ipucu.classList.remove("hata");
+
+      if (seciliKmTuru() === "gidilen") {
+        el("f-km").placeholder = "Örn. 420";
+        ipucu.textContent = "Son dolumdan bu yana gidilen kilometre";
+        return;
+      }
+
+      el("f-km").placeholder = "Örn. 128450";
+      const onceki = oncekiSayacKaydi(seciliTur(), el("f-tarih").value, el("f-saat").value);
+      const sayac = kmOku();
+
+      if (!onceki) {
+        ipucu.textContent = "Bu türde ilk sayaç kaydı. Fark bir sonraki dolumda hesaplanacak.";
+      } else if (isNaN(sayac)) {
+        ipucu.textContent = "Önceki sayaç: " + onceki.sayac.toLocaleString("tr-TR") + " km";
+      } else if (sayac <= onceki.sayac) {
+        ipucu.textContent = "Sayaç öncekinden (" + onceki.sayac.toLocaleString("tr-TR") + ") büyük olmalı";
+        ipucu.classList.add("hata");
+      } else {
+        ipucu.textContent = "Önceki: " + onceki.sayac.toLocaleString("tr-TR") +
+          " km → gidilen: " + (sayac - onceki.sayac).toLocaleString("tr-TR") + " km";
+      }
+    }
+
+    // Daha önce yazılmış istasyon adlarını öneri listesine koyar
+    function istasyonListesiDoldur() {
+      const liste = el("istasyon-listesi");
+      const adlar = [...new Set(kayitlariOku().map(k => k.istasyon).filter(Boolean))];
+      liste.innerHTML = "";
+      adlar.forEach(ad => {
+        const secenek = document.createElement("option");
+        secenek.value = ad;
+        liste.appendChild(secenek);
+      });
+    }
+
+    // Formu temizler, tarih/saati şu ana ayarlar (yakıt türü seçimi korunur)
+    function formuSifirla() {
+      const simdi = new Date();
+      el("f-tarih").value = simdi.getFullYear() + "-" + ikiHane(simdi.getMonth() + 1) + "-" + ikiHane(simdi.getDate());
+      el("f-saat").value = ikiHane(simdi.getHours()) + ":" + ikiHane(simdi.getMinutes());
+      ["f-km", "f-istasyon"].forEach(id => el(id).value = "");
+      ucluDoldur(null, null);
+      el("form-hata").textContent = "";
+      kmIpucuGoster();
+      istasyonListesiDoldur();
+    }
+
+    // Kutulara her yazıldığında / seçim değiştiğinde açıklamaları yenile
+    form.addEventListener("input", olay => {
+      if (UCLU.includes(olay.target.id)) ucluElleDegisti(olay.target.id);
+      kmIpucuGoster();
+    });
+    form.addEventListener("change", kmIpucuGoster);
+
+    // -----------------------------------------------------
+    // AÇILIR PANEL (Sürüm 0.3)
+    // -----------------------------------------------------
+    function paneliAc() {
+      formuSifirla();
+      el("ekle-paneli").scrollTop = 0;
+      el("ekle-paneli").classList.add("acik");
+      el("perde").classList.add("acik");
+      document.body.classList.add("panel-acik");
+    }
+    function paneliKapat() {
+      document.activeElement && document.activeElement.blur(); // klavyeyi kapat
+      el("ekle-paneli").classList.remove("acik");
+      el("perde").classList.remove("acik");
+      document.body.classList.remove("panel-acik");
+    }
+    el("ekle-dugmesi").addEventListener("click", paneliAc);
+    el("panel-kapat").addEventListener("click", paneliKapat);
+    el("perde").addEventListener("click", paneliKapat);   // boş yere dokununca kapanır
+
+    // "Kaydet" butonu
+    form.addEventListener("submit", olay => {
+      olay.preventDefault();
+      const hataGoster = mesaj => { el("form-hata").textContent = mesaj; };
+
+      const tur   = seciliTur();
+      const tarih = el("f-tarih").value;
+      const saat  = el("f-saat").value;
+      const litre = sayiyaCevir(el("f-litre").value);
+      const tutar = sayiyaCevir(el("f-tutar").value);
+      const fiyat = sayiyaCevir(el("f-fiyat").value);
+      const km    = kmOku();
+
+      if (!tarih)                return hataGoster("Tarih girin.");
+      if (!(litre > 0) || !(tutar > 0))
+        return hataGoster("Litre, fiyat ve tutardan en az ikisini girin.");
+      if (isNaN(km) || km <= 0)  return hataGoster("Kilometre girin.");
+
+      const kayit = {
+        tur: tur,
+        tarih: tarih,
+        saat: saat,
+        litre: litre,
+        tutar: tutar,
+        fiyat: fiyat > 0 ? fiyat : Math.round(tutar / litre * 100) / 100,   // litre fiyatı (₺/Lt)
+        istasyon: el("f-istasyon").value.trim(),
+        sayac: null,
+        gidilenKm: null
+      };
+
+      if (seciliKmTuru() === "sayac") {
+        const onceki = oncekiSayacKaydi(tur, tarih, saat);
+        if (onceki && km <= onceki.sayac) return hataGoster("Sayaç önceki kayıttan büyük olmalı.");
+        kayit.sayac = km;
+      } else {
+        kayit.gidilenKm = km;
+      }
+
+      if (kayitEkle(kayit)) {
+        paneliKapat();
+        bildirimGoster("✓ Kaydedildi");
+        ozetGuncelle();
+      }
+    });
+
+    // Ekranın altında kısa süreli bildirim balonu
+    const bildirim = document.createElement("div");
+    bildirim.className = "bildirim";
+    document.body.appendChild(bildirim);
+    function bildirimGoster(mesaj) {
+      bildirim.textContent = mesaj;
+      bildirim.classList.add("goster");
+      clearTimeout(bildirim.zamanlayici);
+      bildirim.zamanlayici = setTimeout(() => bildirim.classList.remove("goster"), 1800);
+    }
+
+    // Özet sayfası (geçici: şimdilik sadece kayıt sayısı, hesaplar Adım 5'te)
+    function ozetGuncelle() {
+      el("kayit-sayisi").textContent =
+        "Kayıtlı dolum sayısı: " + kayitlariOku().length + " (hesaplamalar Adım 5'te)";
+    }
+
+    // Uygulama açılınca
+    formuSifirla();
+    ozetGuncelle();
+  </script>
+</body>
+</html>
