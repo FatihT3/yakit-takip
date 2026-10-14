@@ -386,6 +386,24 @@
     .kart-alt { font-size: 13px; color: var(--soluk); margin-top: 6px; line-height: 1.5; }
 
     /* ---------- FİŞ OKUMA (Adım 6 / Sürüm 0.7) ---------- */
+    /* ---------- YEDEKLEME (Adım 7 / Sürüm 0.8) ---------- */
+    .yedek-kart { margin-top: 18px; }
+    .yedek-dugmeler { margin-top: 12px; }
+    .ikincil-dugme {
+      flex: 1;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 12px;
+      border: 1px solid var(--cizgi);
+      background: var(--arkaplan);
+      color: var(--yazi);
+    }
+    .ikincil-dugme:active { opacity: .7; }
+    .ikincil-dugme:disabled { opacity: .5; }
+    #yedek-durum { margin: 10px 0 0; }
+
     .fis-dugmesi {
       width: 100%;
       display: flex;
@@ -457,6 +475,18 @@
     <section class="sayfa" id="sayfa-kayitlar">
       <!-- Liste JavaScript ile doldurulur (listeGuncelle). Aylara göre gruplu, yeniden eskiye. -->
       <div id="kayit-listesi"></div>
+
+      <!-- Yedekleme (Adım 7 / Sürüm 0.8) -->
+      <div class="kart yedek-kart">
+        <h2>Yedekleme</h2>
+        <p class="bilgi" id="yedek-bilgi"></p>
+        <div class="yan-yana yedek-dugmeler">
+          <button type="button" class="ikincil-dugme" id="yedek-al">Yedek al</button>
+          <button type="button" class="ikincil-dugme" id="yedek-yukle">Geri yükle</button>
+        </div>
+        <input type="file" id="yedek-dosya" accept=".json,application/json" hidden>
+        <div class="fis-durum" id="yedek-durum"></div>
+      </div>
     </section>
   </main>
 
@@ -577,7 +607,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "0.7.2";
+    const SURUM = "0.8";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -1049,7 +1079,140 @@
     function hepsiniGuncelle() {
       listeGuncelle();
       ozetGuncelle();
+      yedekBilgisiGoster();
     }
+
+    // =====================================================
+    // YEDEKLEME (Adım 7 / Sürüm 0.8)
+    // Yedek al: kayıtlar JSON dosyasına yazılır, iPhone paylaşım menüsü açılır
+    //           ("Dosyalara Kaydet" ile iCloud Drive / telefona). Paylaşım yoksa indirilir.
+    // Geri yükle: dosyadaki kayıtlar mevcut kayıtlara EKLENİR. Aynı kimlikli kayıt
+    //             tekrar eklenmez, hiçbir kayıt silinmez.
+    // =====================================================
+    const SON_YEDEK_ANAHTARI = "yakitSonYedek_v1";
+
+    function yedekDurum(mesaj, tur) {
+      const d = el("yedek-durum");
+      d.textContent = mesaj;
+      d.className = "fis-durum" + (tur ? " " + tur : "");
+    }
+
+    function tarihYazisi(isoTarih) {
+      const t = new Date(isoTarih);
+      return t.getDate() + " " + AY_ADLARI[t.getMonth()] + " " + t.getFullYear();
+    }
+
+    function yedekBilgisiGoster() {
+      let son = null;
+      try { son = localStorage.getItem(SON_YEDEK_ANAHTARI); } catch (e) {}
+      const sayi = kayitlariOku().length;
+      let yazi = sayi + " kayıt telefonda. ";
+      if (!son) {
+        yazi += sayi ? "Henüz yedek alınmadı." : "";
+      } else {
+        const gun = Math.floor((Date.now() - new Date(son)) / 86400000);
+        yazi += "Son yedek: " + tarihYazisi(son) + (gun > 30 ? " (bir aydan eski, yeni yedek al)" : "");
+      }
+      el("yedek-bilgi").textContent = yazi.trim();
+    }
+
+    el("yedek-al").addEventListener("click", async () => {
+      const kayitlar = kayitlariOku();
+      if (!kayitlar.length) return yedekDurum("Yedeklenecek kayıt yok.", "uyari");
+
+      const simdi = new Date();
+      const dosyaAdi = "yakit-yedek-" + simdi.getFullYear() + "-" + ikiHane(simdi.getMonth() + 1) + "-" +
+        ikiHane(simdi.getDate()) + ".json";
+      const icerik = JSON.stringify({
+        uygulama: "yakit-takip",
+        surum: SURUM,
+        yedekTarihi: simdi.toISOString(),
+        kayitlar: kayitlar
+      }, null, 1);
+      const dosya = new File([icerik], dosyaAdi, { type: "application/json" });
+
+      const basarili = () => {
+        try { localStorage.setItem(SON_YEDEK_ANAHTARI, simdi.toISOString()); } catch (e) {}
+        yedekBilgisiGoster();
+        yedekDurum("✓ " + kayitlar.length + " kayıt yedeklendi (" + dosyaAdi + ").");
+      };
+
+      // iPhone: paylaşım menüsü → "Dosyalara Kaydet"
+      if (navigator.canShare && navigator.canShare({ files: [dosya] })) {
+        try {
+          await navigator.share({ files: [dosya] });
+          basarili();
+        } catch (e) {
+          if (e.name !== "AbortError") yedekDurum("Paylaşım açılamadı: " + e.message, "hata");
+          // AbortError: kullanıcı paylaşımı kapattı, yedek alınmış sayılmaz
+        }
+        return;
+      }
+
+      // Paylaşım yoksa (bilgisayar tarayıcısı): dosyayı indir
+      const adres = URL.createObjectURL(dosya);
+      const a = document.createElement("a");
+      a.href = adres;
+      a.download = dosyaAdi;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(adres), 2000);
+      basarili();
+    });
+
+    // Bir kaydın yapısı doğru mu? (bozuk ya da başka dosyadan gelen veriyi alma)
+    function gecerliKayit(k) {
+      return k && typeof k === "object" &&
+        typeof k.id === "string" && k.id &&
+        (k.tur === "LPG" || k.tur === "BENZIN") &&
+        /^\d{4}-\d{2}-\d{2}$/.test(k.tarih) &&
+        typeof k.litre === "number" && k.litre > 0 &&
+        typeof k.tutar === "number" && k.tutar > 0;
+    }
+
+    el("yedek-yukle").addEventListener("click", () => el("yedek-dosya").click());
+
+    el("yedek-dosya").addEventListener("change", async () => {
+      const dosya = el("yedek-dosya").files[0];
+      el("yedek-dosya").value = "";
+      if (!dosya) return;
+      try {
+        const veri = JSON.parse(await dosya.text());
+        const gelen = Array.isArray(veri) ? veri : veri && veri.kayitlar;
+        if (!Array.isArray(gelen)) throw new Error("bu bir yedek dosyası değil");
+
+        const mevcut = kayitlariOku();
+        const kimlikler = new Set(mevcut.map(k => k.id));
+        let eklenen = 0, zatenVar = 0, hatali = 0;
+        gelen.forEach(k => {
+          if (!gecerliKayit(k)) { hatali++; return; }
+          if (kimlikler.has(k.id)) { zatenVar++; return; }
+          // Sadece bilinen alanları al
+          mevcut.push({
+            id: k.id, tur: k.tur, tarih: k.tarih, saat: typeof k.saat === "string" ? k.saat : "",
+            litre: k.litre, tutar: k.tutar,
+            fiyat: typeof k.fiyat === "number" ? k.fiyat : Math.round(k.tutar / k.litre * 100) / 100,
+            istasyon: typeof k.istasyon === "string" ? k.istasyon.slice(0, 60) : "",
+            sayac: typeof k.sayac === "number" ? k.sayac : null,
+            gidilenKm: typeof k.gidilenKm === "number" ? k.gidilenKm : null
+          });
+          kimlikler.add(k.id);
+          eklenen++;
+        });
+
+        if (eklenen && !kayitlariYaz(mevcut)) return;
+        hepsiniGuncelle();
+        let mesaj = (eklenen ? "✓ " + eklenen + " kayıt eklendi." : "Yeni kayıt yok.") +
+          (zatenVar ? " " + zatenVar + " kayıt zaten vardı." : "") +
+          (hatali ? " " + hatali + " bozuk kayıt atlandı." : "");
+        yedekDurum(mesaj, hatali ? "uyari" : "");
+      } catch (e) {
+        yedekDurum(e instanceof SyntaxError
+          ? "Dosya okunamadı: dosya bozuk ya da yedek dosyası değil."
+          : "Dosya okunamadı: " + e.message + ".", "hata");
+      }
+    });
 
     // Ekranın altında kısa süreli bildirim balonu
     const bildirim = document.createElement("div");
