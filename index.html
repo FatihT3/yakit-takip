@@ -10,11 +10,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <!-- Durum çubuğu (saat, pil) uygulamanın üstünde şeffaf görünsün -->
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Durum çubuğu (saat, pil) düz renkte dursun; içerik altına girip bulanıklaşmasın (Sürüm 0.4.2) -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <!-- Ana ekranda simgenin altında görünecek isim -->
   <meta name="apple-mobile-web-app-title" content="Yakıt">
-  <meta name="theme-color" content="#111827">
+  <!-- Durum çubuğunun rengi: başlık çubuğuyla aynı (açık / koyu tema) -->
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161b26" media="(prefers-color-scheme: dark)">
   <title>Yakıt Takip</title>
 
   <!-- ===================================================
@@ -63,7 +65,7 @@
       background: var(--kart);
       border-bottom: 1px solid var(--cizgi);
     }
-    header h1 { font-size: 20px; }
+    header h1 { font-size: 20px; -webkit-font-smoothing: antialiased; }
     header small { color: var(--soluk); font-size: 12px; }
 
     /* Sayfa içeriği: alttaki sekme çubuğunun arkasında kalmasın */
@@ -96,13 +98,14 @@
       display: flex;
       background: var(--kart);
       border-top: 1px solid var(--cizgi);
-      padding-bottom: env(safe-area-inset-bottom);
+      /* iPhone ev çizgisi için boşluk: tamamı değil, yarısı kadar (butonlar aşağıda dursun) */
+      padding-bottom: calc(env(safe-area-inset-bottom) * 0.5);
     }
     nav button {
       flex: 1;
       background: none;
       border: none;
-      padding: 10px 0 8px;
+      padding: 8px 0 6px;
       color: var(--soluk);
       font-size: 12px;
       font-family: inherit;
@@ -181,7 +184,7 @@
     .bildirim {
       position: fixed;
       left: 50%;
-      bottom: calc(env(safe-area-inset-bottom) + 80px);
+      bottom: calc(env(safe-area-inset-bottom) * 0.5 + 76px);
       transform: translateX(-50%);
       background: var(--yazi);
       color: var(--arkaplan);
@@ -244,7 +247,7 @@
     .ekle-dugmesi {
       position: fixed;
       right: 20px;
-      bottom: calc(env(safe-area-inset-bottom) + 80px);
+      bottom: calc(env(safe-area-inset-bottom) * 0.5 + 76px);
       width: 58px; height: 58px;
       border-radius: 50%;
       border: none;
@@ -422,7 +425,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "0.4.1";
+    const SURUM = "0.4.2";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
