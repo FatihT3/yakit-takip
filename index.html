@@ -35,6 +35,7 @@
       --cizgi: #e5e7eb;
       --lpg: #2563eb;      /* LPG için mavi */
       --benzin: #ea580c;   /* Benzin için turuncu */
+      --dizel: #7c3aed;    /* Dizel için mor (Sürüm 1.4) */
       --vurgu: #059669;    /* Genel vurgu (yeşil) */
     }
 
@@ -48,6 +49,7 @@
         --cizgi: #263041;
         --lpg: #60a5fa;
         --benzin: #fb923c;
+        --dizel: #a78bfa;
         --vurgu: #34d399;
         --buton-yazi: #052e22;
       }
@@ -93,6 +95,7 @@
     .kart .deger { font-size: 28px; font-weight: 700; }
     .lpg-renk { color: var(--lpg); }
     .benzin-renk { color: var(--benzin); }
+    .dizel-renk { color: var(--dizel); }
     .vurgu-renk { color: var(--vurgu); }
     .bilgi { color: var(--soluk); font-size: 14px; line-height: 1.5; }
 
@@ -141,7 +144,7 @@
     .yan-yana { display: flex; gap: 10px; }
     .yan-yana .alan { flex: 1; min-width: 0; }
 
-    /* LPG/Benzin ve Sayaç/Gidilen km seçim düğmeleri */
+    /* Yakıt türü seçim düğmeleri (kayıt formu ve Yakıt ayarları kartı) */
     .secim {
       display: flex;
       background: var(--arkaplan);
@@ -165,8 +168,11 @@
       font-weight: 600;
       box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
     }
-    #tur-lpg:checked + label { color: var(--lpg); }
-    #tur-benzin:checked + label { color: var(--benzin); }
+    /* Seçili yakıt kendi renginde yazılır (Sürüm 1.4: Dizel eklendi) */
+    .secim input[value="LPG"]:checked + label { color: var(--lpg); }
+    .secim input[value="BENZIN"]:checked + label { color: var(--benzin); }
+    .secim input[value="DIZEL"]:checked + label { color: var(--dizel); }
+    .secim [hidden] { display: none; }
 
     /* Kutuların altındaki küçük açıklama / hata yazıları */
     .ipucu { font-size: 13px; color: var(--soluk); margin-top: 6px; min-height: 18px; }
@@ -333,6 +339,7 @@
     }
     .rozet.LPG { background: var(--lpg); }
     .rozet.BENZIN { background: var(--benzin); }
+    .rozet.DIZEL { background: var(--dizel); }
 
     .satir-orta { flex: 1; min-width: 0; }
     .satir-ust { font-size: 15px; font-weight: 600; }
@@ -391,6 +398,9 @@
     /* ---------- FİŞ OKUMA (Adım 6 / Sürüm 0.7) ---------- */
     /* ---------- YEDEKLEME (Adım 7 / Sürüm 0.8) ---------- */
     .yedek-kart { margin-top: 18px; }
+    /* Yakıt ayarları kartı (Sürüm 1.4) */
+    .ayar-baslik { font-size: 13px; color: var(--soluk); margin: 12px 0 6px; }
+    .ayar-kart .ipucu { min-height: 0; }
     .yedek-dugmeler { margin-top: 12px; }
     .ikincil-dugme {
       flex: 1;
@@ -455,15 +465,21 @@
         <button type="button" id="ay-ileri" aria-label="Sonraki ay">›</button>
       </div>
 
-      <div class="kart">
+      <!-- Yakıt kartları: ayarlarda seçili yakıtlar ve o ay kaydı olan yakıtlar görünür (Sürüm 1.4) -->
+      <div class="kart" id="kart-LPG">
         <h2>LPG</h2>
-        <div class="deger lpg-renk" id="ozet-lpg">— ₺</div>
-        <div class="kart-alt" id="ozet-lpg-alt"></div>
+        <div class="deger lpg-renk" id="ozet-LPG">— ₺</div>
+        <div class="kart-alt" id="ozet-LPG-alt"></div>
       </div>
-      <div class="kart">
+      <div class="kart" id="kart-BENZIN">
         <h2>Benzin</h2>
-        <div class="deger benzin-renk" id="ozet-benzin">— ₺</div>
-        <div class="kart-alt" id="ozet-benzin-alt"></div>
+        <div class="deger benzin-renk" id="ozet-BENZIN">— ₺</div>
+        <div class="kart-alt" id="ozet-BENZIN-alt"></div>
+      </div>
+      <div class="kart" id="kart-DIZEL">
+        <h2>Dizel</h2>
+        <div class="deger dizel-renk" id="ozet-DIZEL">— ₺</div>
+        <div class="kart-alt" id="ozet-DIZEL-alt"></div>
       </div>
       <div class="kart">
         <h2>Km başı toplam maliyet</h2>
@@ -478,6 +494,26 @@
     <section class="sayfa" id="sayfa-kayitlar">
       <!-- Liste JavaScript ile doldurulur (listeGuncelle). Aylara göre gruplu, yeniden eskiye. -->
       <div id="kayit-listesi"></div>
+
+      <!-- Yakıt ayarları (Sürüm 1.4): hangi yakıtlar kullanılıyor, km hangi yakıtın dolumunda giriliyor -->
+      <div class="kart yedek-kart ayar-kart">
+        <h2>Yakıt ayarları</h2>
+        <div class="ayar-baslik">Kullandığım yakıtlar</div>
+        <div class="secim" id="ayar-yakitlar">
+          <input type="checkbox" id="ayar-LPG" value="LPG"><label for="ayar-LPG">LPG</label>
+          <input type="checkbox" id="ayar-BENZIN" value="BENZIN"><label for="ayar-BENZIN">Benzin</label>
+          <input type="checkbox" id="ayar-DIZEL" value="DIZEL"><label for="ayar-DIZEL">Dizel</label>
+        </div>
+        <div id="ana-yakit-blok">
+          <div class="ayar-baslik">Km'yi hangi yakıtın dolumunda giriyorum?</div>
+          <div class="secim" id="ayar-ana">
+            <input type="radio" name="ana-yakit" id="ana-LPG" value="LPG"><label for="ana-LPG">LPG</label>
+            <input type="radio" name="ana-yakit" id="ana-BENZIN" value="BENZIN"><label for="ana-BENZIN">Benzin</label>
+            <input type="radio" name="ana-yakit" id="ana-DIZEL" value="DIZEL"><label for="ana-DIZEL">Dizel</label>
+          </div>
+        </div>
+        <div class="ipucu" id="ayar-ipucu"></div>
+      </div>
 
       <!-- Yedekleme (Adım 7 / Sürüm 0.8) -->
       <div class="kart yedek-kart">
@@ -516,13 +552,15 @@
         <input type="file" id="fis-dosya" accept="image/*" hidden>
         <div class="fis-durum" id="fis-durum"></div>
 
-        <!-- Yakıt türü -->
-        <div class="alan">
+        <!-- Yakıt türü: sadece ayarlarda seçili yakıtlar görünür; tek yakıt varsa bölüm gizlenir (Sürüm 1.4) -->
+        <div class="alan" id="tur-blok">
           <div class="secim">
-            <input type="radio" name="tur" id="tur-lpg" value="LPG" checked>
-            <label for="tur-lpg">LPG</label>
-            <input type="radio" name="tur" id="tur-benzin" value="BENZIN">
-            <label for="tur-benzin">Benzin</label>
+            <input type="radio" name="tur" id="tur-LPG" value="LPG" checked>
+            <label for="tur-LPG">LPG</label>
+            <input type="radio" name="tur" id="tur-BENZIN" value="BENZIN">
+            <label for="tur-BENZIN">Benzin</label>
+            <input type="radio" name="tur" id="tur-DIZEL" value="DIZEL">
+            <label for="tur-DIZEL">Dizel</label>
           </div>
         </div>
 
@@ -563,7 +601,7 @@
           <datalist id="istasyon-listesi"></datalist>
         </div>
 
-        <!-- Gidilen km: sadece LPG'de sorulur, benzinde gizlenir (Sürüm 1.1) -->
+        <!-- Gidilen km: sadece "km'yi taşıyan" yakıtta sorulur (ayarlardan, varsayılan LPG), diğerlerinde gizlenir (Sürüm 1.4) -->
         <div class="alan" id="km-blok">
           <label for="f-km">Gidilen km</label>
           <input type="text" inputmode="decimal" id="f-km" placeholder="Örn. 420">
@@ -602,7 +640,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "1.3";
+    const SURUM = "1.4";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -681,6 +719,39 @@
       return kayitlariOku().sort((a, b) =>
         (a.tarih + (a.saat || "")).localeCompare(b.tarih + (b.saat || ""))
       );
+    }
+
+    // =====================================================
+    // YAKIT TÜRLERİ VE AYARLAR (Sürüm 1.4)
+    // Kod: kayıtlarda saklanan değer. Ad: ekranda. Rozet: listedeki kısa etiket.
+    // Ayarlar: hangi yakıtlar kullanılıyor + km hangi yakıtın dolumunda giriliyor ("ana yakıt").
+    // Km sayacı sadece ana yakıt alınınca sıfırlandığı için, ana yakıtın gidilen km'si
+    // aradaki diğer yakıtlarla gidilen yolu da içerir. Km başı maliyet bu yüzden doğru çıkar.
+    // =====================================================
+    const YAKITLAR = [
+      { kod: "LPG",    ad: "LPG",    rozet: "LPG" },
+      { kod: "BENZIN", ad: "Benzin", rozet: "BENZİN" },
+      { kod: "DIZEL",  ad: "Dizel",  rozet: "DİZEL" }
+    ];
+    const YAKIT_KODLARI = YAKITLAR.map(y => y.kod);
+    const yakitAdi = kod => (YAKITLAR.find(y => y.kod === kod) || YAKITLAR[0]).ad;
+    const yakitRozeti = kod => (YAKITLAR.find(y => y.kod === kod) || YAKITLAR[0]).rozet;
+
+    const AYAR_ANAHTARI = "yakitAyarlar_v1";
+    // Varsayılan: LPG + benzin, km LPG'de (1.4 öncesi davranışla aynı)
+    const VARSAYILAN_AYARLAR = { yakitlar: ["LPG", "BENZIN"], anaYakit: "LPG" };
+
+    function ayarlariOku() {
+      let a = null;
+      try { a = JSON.parse(localStorage.getItem(AYAR_ANAHTARI)); } catch (e) {}
+      if (!a || !Array.isArray(a.yakitlar)) return { ...VARSAYILAN_AYARLAR };
+      // Bozuk değerleri ayıkla: bilinen yakıtlar, en az bir tane, ana yakıt seçililerden biri
+      const yakitlar = YAKIT_KODLARI.filter(k => a.yakitlar.includes(k));
+      if (!yakitlar.length) return { ...VARSAYILAN_AYARLAR };
+      return { yakitlar, anaYakit: yakitlar.includes(a.anaYakit) ? a.anaYakit : yakitlar[0] };
+    }
+    function ayarlariYaz(a) {
+      try { localStorage.setItem(AYAR_ANAHTARI, JSON.stringify(a)); } catch (e) {}
     }
 
     // Safari'den verileri kendiliğinden silmemesini rica et
@@ -784,12 +855,41 @@
       ucluHesapla();
     }
 
-    // Km bölümü: LPG'de görünür (zorunlu), benzinde gizlenir (km LPG'den sayılır)
+    // Düzenlenen kaydın açılıştaki km'si (ana yakıt sonradan değiştiyse eski km kaybolmasın diye)
+    let duzenlenenKm = null;
+
+    // Km bölümü: ana yakıtta görünür ve zorunludur, diğer yakıtlarda gizlenir (Sürüm 1.4).
+    // İstisna: düzenlenen kayıtta zaten km varsa (ana yakıt sonradan değişmiş) isteğe bağlı görünür.
+    function kmZorunlu() { return seciliTur() === ayarlariOku().anaYakit; }
     function kmIpucuGoster() {
-      const lpgMi = seciliTur() === "LPG";
-      el("km-blok").hidden = !lpgMi;
+      const zorunlu = kmZorunlu();
+      el("km-blok").hidden = !zorunlu && duzenlenenKm == null;
       el("km-ipucu").classList.remove("hata");
-      el("km-ipucu").textContent = "Bir önceki LPG dolumundan bu yana gidilen kilometre";
+      el("km-ipucu").textContent = zorunlu
+        ? "Bir önceki " + yakitAdi(seciliTur()) + " dolumundan bu yana gidilen kilometre"
+        : "İsteğe bağlı (km artık " + yakitAdi(ayarlariOku().anaYakit) + " dolumunda giriliyor)";
+    }
+
+    // Yakıt türü düğmeleri: ayarlarda seçili yakıtlar + (düzenlemede) kaydın kendi türü görünür.
+    // Tek seçenek kalırsa bölüm tamamen gizlenir.
+    function turSecimGuncelle() {
+      const ayar = ayarlariOku();
+      const secili = seciliTur();
+      let gorunenler = 0;
+      YAKIT_KODLARI.forEach(kod => {
+        const gorunsun = ayar.yakitlar.includes(kod) || kod === secili;
+        el("tur-" + kod).hidden = !gorunsun;
+        form.querySelector('label[for="tur-' + kod + '"]').hidden = !gorunsun;
+        if (gorunsun) gorunenler++;
+      });
+      el("tur-blok").hidden = gorunenler < 2;
+    }
+    // Yakıt türünü seçer (ekranda görünmüyorsa görünür yapar)
+    function turSec(kod) {
+      if (!YAKIT_KODLARI.includes(kod)) kod = ayarlariOku().anaYakit;
+      el("tur-" + kod).checked = true;
+      turSecimGuncelle();
+      kmIpucuGoster();
     }
 
     // Daha önce yazılmış istasyon adlarını öneri listesine koyar
@@ -804,8 +904,10 @@
       });
     }
 
-    // Formu temizler, tarih/saati şu ana ayarlar (yakıt türü seçimi korunur)
+    // Formu temizler, tarih/saati şu ana ayarlar. Yakıt türü ana yakıta döner (Sürüm 1.4).
     function formuSifirla() {
+      duzenlenenKm = null;
+      turSec(ayarlariOku().anaYakit);
       const simdi = new Date();
       el("f-tarih").value = simdi.getFullYear() + "-" + ikiHane(simdi.getMonth() + 1) + "-" + ikiHane(simdi.getDate());
       el("f-saat").value = ikiHane(simdi.getHours()) + ":" + ikiHane(simdi.getMinutes());
@@ -839,7 +941,8 @@
         duzenlenenId = kayit.id;
         el("panel-baslik").textContent = "Kaydı Düzenle";
         el("sil-dugmesi").hidden = false;
-        el(kayit.tur === "BENZIN" ? "tur-benzin" : "tur-lpg").checked = true;
+        duzenlenenKm = typeof kayit.gidilenKm === "number" ? kayit.gidilenKm : null;
+        turSec(kayit.tur);
         el("f-tarih").value = kayit.tarih;
         el("f-saat").value = kayit.saat || "";
         el("f-istasyon").value = kayit.istasyon || "";
@@ -901,10 +1004,12 @@
       if (!tarih)                return hataGoster("Tarih girin.");
       if (!(litre > 0) || !(tutar > 0))
         return hataGoster("Litre, fiyat ve tutardan en az ikisini girin.");
-      if (tur === "LPG") {
-        if (isNaN(km) || km <= 0) return hataGoster("Gidilen km'yi girin.");
-        if (km > 5000) return hataGoster("Gidilen km çok büyük. Sayaç değerini değil, gidilen km'yi girin.");
-      }
+      // Km: ana yakıtta zorunlu; diğer yakıtta sadece km bölümü görünüyorsa (eski km'li kayıt) isteğe bağlı
+      const zorunlu = kmZorunlu();
+      const kmGorunur = !el("km-blok").hidden;
+      if (zorunlu && (isNaN(km) || km <= 0)) return hataGoster("Gidilen km'yi girin.");
+      if (kmGorunur && km > 5000) return hataGoster("Gidilen km çok büyük. Sayaç değerini değil, gidilen km'yi girin.");
+      const kaydedilecekKm = kmGorunur && km > 0 ? km : null;
 
       const kayit = {
         tur: tur,
@@ -915,7 +1020,7 @@
         fiyat: fiyat > 0 ? fiyat : Math.round(tutar / litre * 100) / 100,   // litre fiyatı (₺/Lt)
         istasyon: el("f-istasyon").value.trim(),
         sayac: null,                                  // artık kullanılmıyor (Sürüm 1.1)
-        gidilenKm: tur === "LPG" ? km : null          // benzinde km sorulmaz
+        gidilenKm: kaydedilecekKm                     // ana yakıt dışında km sorulmaz (Sürüm 1.4)
       };
 
       const basarili = duzenlenenId ? kayitGuncelle(duzenlenenId, kayit) : kayitEkle(kayit);
@@ -945,12 +1050,14 @@
       return typeof kayit.gidilenKm === "number" ? kayit.gidilenKm : null;
     }
 
-    // 100 km'de tüketim (L/100 km) — Sürüm 1.3
-    // Her LPG dolumu, bir önceki dolumdan beri yakılan gazı yerine koyar; gidilen km de
+    // 100 km'de tüketim (L/100 km) — Sürüm 1.3, 1.4'te her yakıt türü için
+    // Her dolum, bir önceki aynı tür dolumdan beri yakılanı yerine koyar; gidilen km de
     // tam o aralığı ölçer. Bu yüzden: (km'si olan kayıtların litresi ÷ km'si) × 100.
     // Km'si olmayan kayıtlar hesaba katılmaz (yoksa sonuç şişer). Sonuç yoksa null.
-    function yuzKmTuketim(kayitlar) {
-      const kmli = kayitlar.filter(k => k.tur === "LPG" && gidilenKmBul(k) > 0);
+    // Not: çift yakıtlı araçta ana yakıtın km'si diğer yakıtla gidilen yolu da içerir,
+    // bu yüzden ana yakıtın tüketimi biraz düşük görünür (kullanıcı şimdilik basit istedi).
+    function yuzKmTuketim(kayitlar, tur) {
+      const kmli = kayitlar.filter(k => k.tur === tur && gidilenKmBul(k) > 0);
       const km = kmli.reduce((t, k) => t + gidilenKmBul(k), 0);
       const litre = kmli.reduce((t, k) => t + k.litre, 0);
       return km > 0 ? litre / km * 100 : null;
@@ -998,26 +1105,27 @@
       Object.keys(aylar).forEach(ay => {
         const kayitlar = aylar[ay];
         const [yil, ayNo] = ay.split("-");
-        const lpgToplam = kayitlar.filter(k => k.tur === "LPG").reduce((t, k) => t + k.tutar, 0);
-        const benzinToplam = kayitlar.filter(k => k.tur === "BENZIN").reduce((t, k) => t + k.tutar, 0);
+        // Ay başlığında o ay kaydı olan her yakıtın toplamı (Sürüm 1.4)
+        const toplamlar = YAKIT_KODLARI
+          .map(kod => [kod, kayitlar.filter(k => k.tur === kod)])
+          .filter(([, liste]) => liste.length)
+          .map(([kod, liste]) => yakitAdi(kod) + " " + tlBicim.format(liste.reduce((t, k) => t + k.tutar, 0)) + " ₺");
 
         html += '<div class="ay-baslik"><span>' + AY_ADLARI[+ayNo - 1] + " " + yil + "</span><small>" +
-          "LPG " + tlBicim.format(lpgToplam) + " ₺" +
-          (benzinToplam > 0 ? " · Benzin " + tlBicim.format(benzinToplam) + " ₺" : "") +
-          "</small></div>";
+          toplamlar.join(" · ") + "</small></div>";
 
         html += '<div class="liste-kart">';
         kayitlar.forEach(k => {
           const gun = +k.tarih.slice(8, 10);
           const fiyat = k.fiyat || (k.litre ? k.tutar / k.litre : 0);
-          const km = k.tur === "LPG" ? gidilenKmBul(k) : null;   // benzinde km gösterilmez
+          const km = gidilenKmBul(k);   // km sadece ana yakıt kayıtlarında olur
+          const tur = YAKIT_KODLARI.includes(k.tur) ? k.tur : "LPG";
           const altSatir = [tlBicim.format(k.litre) + " L", tlBicim.format(fiyat) + " ₺/L"];
           if (k.istasyon) altSatir.push(guvenli(k.istasyon));
 
           html +=
             '<button type="button" class="satir" data-id="' + guvenli(k.id) + '">' +
-              '<span class="rozet ' + (k.tur === "BENZIN" ? "BENZIN" : "LPG") + '">' +
-                (k.tur === "BENZIN" ? "BENZİN" : "LPG") + "</span>" +
+              '<span class="rozet ' + tur + '">' + yakitRozeti(tur) + "</span>" +
               '<span class="satir-orta">' +
                 '<div class="satir-ust">' + gun + " " + AY_ADLARI[+ayNo - 1] + (k.saat ? " · " + guvenli(k.saat) : "") + "</div>" +
                 '<div class="satir-alt">' + altSatir.join(" · ") + "</div>" +
@@ -1132,7 +1240,7 @@
     function gecerliKayit(k) {
       return k && typeof k === "object" &&
         typeof k.id === "string" && k.id &&
-        (k.tur === "LPG" || k.tur === "BENZIN") &&
+        YAKIT_KODLARI.includes(k.tur) &&
         /^\d{4}-\d{2}-\d{2}$/.test(k.tarih) &&
         typeof k.litre === "number" && k.litre > 0 &&
         typeof k.tutar === "number" && k.tutar > 0;
@@ -1186,6 +1294,46 @@
       }
     });
 
+    // =====================================================
+    // YAKIT AYARLARI KARTI (Sürüm 1.4)
+    // Kullanılan yakıtlar (en az biri) + km'nin girildiği ana yakıt.
+    // Tek yakıt seçiliyse ana yakıt sorusu gizlenir (o yakıt kendiliğinden ana yakıttır).
+    // =====================================================
+    function ayarKartiGoster() {
+      const ayar = ayarlariOku();
+      YAKIT_KODLARI.forEach(kod => {
+        el("ayar-" + kod).checked = ayar.yakitlar.includes(kod);
+        const secili = ayar.yakitlar.includes(kod);
+        el("ana-" + kod).hidden = !secili;
+        el("ayar-ana").querySelector('label[for="ana-' + kod + '"]').hidden = !secili;
+        el("ana-" + kod).checked = kod === ayar.anaYakit;
+      });
+      el("ana-yakit-blok").hidden = ayar.yakitlar.length < 2;
+      const ana = yakitAdi(ayar.anaYakit);
+      el("ayar-ipucu").textContent = ayar.yakitlar.length < 2
+        ? "Gidilen km her " + ana + " dolumunda sorulur."
+        : "Km sayacını " + ana + " aldığında sıfırla. Gidilen km sadece " + ana +
+          " dolumunda sorulur; aradaki diğer yakıtla gidilen yol da bu km'ye dahildir.";
+    }
+
+    function ayarDegisti() {
+      const yakitlar = YAKIT_KODLARI.filter(kod => el("ayar-" + kod).checked);
+      if (!yakitlar.length) {   // hepsi kapatılamaz: son seçimi geri aç
+        ayarKartiGoster();
+        el("ayar-ipucu").textContent = "En az bir yakıt seçili olmalı.";
+        return;
+      }
+      const isaretliAna = YAKIT_KODLARI.find(kod => el("ana-" + kod).checked);
+      const anaYakit = yakitlar.includes(isaretliAna) ? isaretliAna : yakitlar[0];
+      ayarlariYaz({ yakitlar, anaYakit });
+      ayarKartiGoster();
+      formuSifirla();          // kayıt formu yeni ayarlara göre
+      ozetGuncelle();
+      bildirimGoster("✓ Ayar kaydedildi");
+    }
+    el("ayar-yakitlar").addEventListener("change", ayarDegisti);
+    el("ayar-ana").addEventListener("change", ayarDegisti);
+
     // Ekranın altında kısa süreli bildirim balonu
     const bildirim = document.createElement("div");
     bildirim.className = "bildirim";
@@ -1198,9 +1346,10 @@
     }
 
     // =====================================================
-    // ÖZET SAYFASI (Adım 5 / Sürüm 0.6)
-    // Km başı maliyet = ayın (LPG + benzin) tutarı ÷ ayın LPG km'si.
-    // Km sadece LPG kayıtlarından alınır, aynı yol iki kez sayılmasın.
+    // ÖZET SAYFASI (Adım 5 / Sürüm 0.6, 1.4'te Dizel ve yakıt ayarları)
+    // Km başı maliyet = ayın tüm yakıt tutarı ÷ ayın gidilen km toplamı.
+    // Km sadece ana yakıt kayıtlarında girilir (aynı yol iki kez sayılmaz); toplam,
+    // türe bakmadan km'si olan kayıtlardan alınır (ana yakıt sonradan değişse de eski aylar doğru kalır).
     // =====================================================
     function buAy() {
       const s = new Date();
@@ -1218,8 +1367,7 @@
     function ozetGuncelle() {
       const sirali = siraliKayitlar();
       const ayKayitlari = sirali.filter(k => k.tarih.slice(0, 7) === seciliAy);
-      const lpg = ayKayitlari.filter(k => k.tur === "LPG");
-      const benzin = ayKayitlari.filter(k => k.tur === "BENZIN");
+      const ayar = ayarlariOku();
       const topla = (liste, alan) => liste.reduce((t, k) => t + (k[alan] || 0), 0);
 
       // Ay başlığı ve ok düğmeleri
@@ -1239,24 +1387,31 @@
             tlBicim.format(tutar / litre) + " ₺/L"
           : "Bu ayda kayıt yok";
       }
-      kartDoldur(lpg, "ozet-lpg", "ozet-lpg-alt");
-      const tuketim = yuzKmTuketim(lpg);
-      if (tuketim != null) {
-        el("ozet-lpg-alt").textContent += "\nOrtalama tüketim: " + tuketimBicim.format(tuketim) + " L/100 km";
-      }
-      kartDoldur(benzin, "ozet-benzin", "ozet-benzin-alt");
+      // Her yakıtın kartı: ayarlarda seçiliyse ya da bu ay kaydı varsa görünür
+      const ayYakitlari = [];   // bu ay kaydı olan yakıtlar (km kartındaki açıklama için)
+      YAKIT_KODLARI.forEach(kod => {
+        const liste = ayKayitlari.filter(k => k.tur === kod);
+        if (liste.length) ayYakitlari.push(yakitAdi(kod));
+        el("kart-" + kod).hidden = !ayar.yakitlar.includes(kod) && !liste.length;
+        kartDoldur(liste, "ozet-" + kod, "ozet-" + kod + "-alt");
+        const tuketim = yuzKmTuketim(liste, kod);
+        if (tuketim != null) {
+          el("ozet-" + kod + "-alt").textContent += "\nOrtalama tüketim: " + tuketimBicim.format(tuketim) + " L/100 km";
+        }
+      });
 
       // Km başı maliyet
       const toplamTutar = topla(ayKayitlari, "tutar");
-      const lpgKm = lpg.reduce((t, k) => t + (gidilenKmBul(k) || 0), 0);
-      if (lpgKm > 0) {
-        el("ozet-km").textContent = tlBicim.format(toplamTutar / lpgKm) + " ₺/km";
-        el("ozet-km-alt").textContent = kmYazisi(lpgKm) + " km · toplam " +
-          tlBicim.format(toplamTutar) + " ₺ (LPG + benzin)";
+      const toplamKm = ayKayitlari.reduce((t, k) => t + (gidilenKmBul(k) || 0), 0);
+      if (toplamKm > 0) {
+        el("ozet-km").textContent = tlBicim.format(toplamTutar / toplamKm) + " ₺/km";
+        el("ozet-km-alt").textContent = kmYazisi(toplamKm) + " km · toplam " +
+          tlBicim.format(toplamTutar) + " ₺" +
+          (ayYakitlari.length > 1 ? " (" + ayYakitlari.join(" + ") + ")" : "");
       } else {
         el("ozet-km").textContent = "— ₺/km";
         el("ozet-km-alt").textContent = ayKayitlari.length
-          ? "Bu ay LPG kayıtlarında gidilen km girilmemiş."
+          ? "Bu ay " + yakitAdi(ayar.anaYakit) + " kayıtlarında gidilen km girilmemiş."
           : "Bu ayda kayıt yok";
       }
     }
@@ -1442,6 +1597,8 @@
         if (!sonuc.tur) {
           if (/0T0\s*GAZ|OTO\s*GAZ|OTOGAZ/.test(rakamDuzelt(buyuk).replace(/0/g, "O")) ||
               /\bLPG\b(?!\s*-?\s*BAY)/.test(buyuk)) sonuc.tur = "LPG";
+          // Dizel benzinden önce bakılır: bazı dizel ürün adlarında benzin desenindeki kelimeler de geçer (Sürüm 1.4)
+          else if (/MOTOR[İI1]N|D[İI1]ZEL|D[İI1]ESEL/.test(buyuk)) sonuc.tur = "DIZEL";
           else if (/BENZ[İI]N|KUR[ŞS]UNSUZ|V\s*\/?\s*MAX|EXCELL|ULTIMATE/.test(buyuk)) sonuc.tur = "BENZIN";
         }
 
@@ -1492,9 +1649,7 @@
         el(id).classList.add("okundu");
         setTimeout(() => el(id).classList.remove("okundu"), 2500);
       };
-      if (s.tur) {
-        el(s.tur === "BENZIN" ? "tur-benzin" : "tur-lpg").checked = true;
-      }
+      if (s.tur) turSec(s.tur);   // ayarlarda seçili olmayan bir yakıtsa da görünür olur
       if (s.tarih) { el("f-tarih").value = s.tarih; isaretle("f-tarih"); doldurulan.push("tarih"); }
       if (s.saat)  { el("f-saat").value = s.saat;   isaretle("f-saat");  doldurulan.push("saat"); }
       if (s.tutar) {
@@ -1513,7 +1668,7 @@
           (eksik.length ? ". Okunamadı: " + eksik.join(", ") : "") +
           ". Değerleri fişle karşılaştır.", "uyari");
       } else {
-        fisDurum("✓ Okundu: " + doldurulan.join(", ") + ". Kilometreyi girip kaydet.");
+        fisDurum("✓ Okundu: " + doldurulan.join(", ") + (kmZorunlu() ? ". Kilometreyi girip kaydet." : ". Kontrol edip kaydet."));
       }
     }
 
@@ -1556,6 +1711,7 @@
 
     // Uygulama açılınca
     sayacKayitlariniCevir();
+    ayarKartiGoster();
     formuSifirla();
     hepsiniGuncelle();
 
