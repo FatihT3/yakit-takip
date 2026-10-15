@@ -493,6 +493,13 @@
         <button type="button" id="ay-ileri" aria-label="Sonraki dönem">›</button>
       </div>
 
+      <!-- Ay sonu tahmini: sadece içinde bulunulan ay seçiliyken (Sürüm 1.6) -->
+      <div class="kart" id="kart-tahmin" hidden>
+        <h2>Ay sonu tahmini</h2>
+        <div class="deger" id="ozet-tahmin">— ₺</div>
+        <div class="kart-alt" id="ozet-tahmin-alt"></div>
+      </div>
+
       <!-- Yıl özeti: sadece yıl görünümünde (Sürüm 1.5) -->
       <div class="kart" id="kart-yil" hidden>
         <h2>Yıl toplamı</h2>
@@ -699,7 +706,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "1.5.1";
+    const SURUM = "1.6";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -1592,6 +1599,8 @@
         ? d.oncekiAdi + ": <b>" + tlBicim.format(topla(oncekiKayitlar, "tutar") / oncekiKm) + " ₺/km</b>"
         : "";
 
+      ayTahminiGoster(sirali, toplamTutar);
+
       // Yıl toplamı kartı (sadece yıl görünümünde)
       el("kart-yil").hidden = gorunum !== "yil";
       if (gorunum === "yil") {
@@ -1612,6 +1621,43 @@
       }
 
       grafikleriCiz(sirali);
+    }
+
+    // -----------------------------------------------------
+    // AY SONU TAHMİNİ (Sürüm 1.6) — sadece içinde bulunulan ay seçiliyken görünür.
+    // Tahmin = bu ay şimdiye kadar harcanan + (son 3 tam ayın günlük ortalama harcaması × ayın kalan günleri).
+    // "Harcanan ÷ geçen gün" kullanılmaz: ayın başında depo doldurulunca tahmin çok şişerdi.
+    // Son 3 ayda hiç kayıt yoksa tahmin gösterilmez.
+    // -----------------------------------------------------
+    function ayTahminiGoster(sirali, buAyHarcanan) {
+      const goster = gorunum === "ay" && seciliAy === buAy();
+      el("kart-tahmin").hidden = true;
+      if (!goster) return;
+
+      const bugun = new Date();
+      const gunSayisi = new Date(bugun.getFullYear(), bugun.getMonth() + 1, 0).getDate();
+      const kalanGun = gunSayisi - bugun.getDate();   // bugün geçmiş sayılır
+
+      // Son 3 tam ay: toplam harcama ÷ o ayların gün sayısı
+      let toplam = 0, gun = 0;
+      for (let i = 1; i <= 3; i++) {
+        const ay = ayKaydir(seciliAy, -i);
+        const [y, a] = ay.split("-").map(Number);
+        gun += new Date(y, a, 0).getDate();
+        toplam += topla(sirali.filter(k => k.tarih.startsWith(ay)), "tutar");
+      }
+      if (!(toplam > 0)) return;
+      const gunluk = toplam / gun;
+      const tahmin = buAyHarcanan + gunluk * kalanGun;
+      const tamSayi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
+
+      el("kart-tahmin").hidden = false;
+      el("ozet-tahmin").textContent = "≈ " + tamSayi.format(Math.round(tahmin / 10) * 10) + " ₺";
+      el("ozet-tahmin-alt").textContent =
+        "Şu ana kadar " + tlBicim.format(buAyHarcanan) + " ₺" +
+        (kalanGun > 0
+          ? " + kalan " + kalanGun + " gün × günlük ort. " + tlBicim.format(gunluk) + " ₺ (son 3 ay)"
+          : " (ayın son günü)");
     }
 
     // -----------------------------------------------------
