@@ -527,8 +527,8 @@
         <div class="karsilastirma" id="ozet-km-fark"></div>
       </div>
 
-      <!-- Grafikler (Sürüm 1.5): ay görünümünde seçili aya kadar son 12 ay, yıl görünümünde o yılın 12 ayı.
-           Bir aya dokununca altında o ayın rakamları yazar. -->
+      <!-- Grafikler (Sürüm 1.5, 1.5.1): ay görünümünde sadece o ayın dolumları (yatay eksen: günler),
+           yıl görünümünde o yılın 12 ayı. Bir çubuğa dokununca altında rakamları yazar. -->
       <div class="kart grafik-kart" id="kart-harcama-grafik">
         <h2 id="harcama-grafik-baslik">Aylık harcama</h2>
         <div class="lejant" id="harcama-lejant"></div>
@@ -536,7 +536,7 @@
         <div class="grafik-detay" id="harcama-detay"></div>
       </div>
       <div class="kart grafik-kart" id="kart-fiyat-grafik">
-        <h2>Litre fiyatı (aylık ortalama ₺/L)</h2>
+        <h2 id="fiyat-grafik-baslik">Litre fiyatı (₺/L)</h2>
         <div class="lejant" id="fiyat-lejant"></div>
         <svg class="grafik" id="fiyat-grafik" role="img" aria-label="Aylık ortalama litre fiyatı grafiği"></svg>
         <div class="grafik-detay" id="fiyat-detay"></div>
@@ -699,7 +699,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "1.5";
+    const SURUM = "1.5.1";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -1482,8 +1482,6 @@
     }
     let gorunum = "ay";      // "ay" ya da "yil"
     let seciliAy = buAy();   // "2026-10" biçiminde (yıl görünümünde yılı buradan alınır)
-    let grafikAy = null;     // grafikte ayrıntısı gösterilen ay ("2026-03"); null ise seçim yok
-    let grafikDokunuldu = false;   // kullanıcı bir aya dokunduysa diğer aylar soluklaşır
 
     // "2026-10" → bir ay ileri/geri
     function ayKaydir(ay, fark) {
@@ -1617,26 +1615,39 @@
     }
 
     // -----------------------------------------------------
-    // GRAFİKLER (Sürüm 1.5) — kütüphanesiz, SVG ile çizilir (çevrimdışı da çalışır)
-    // Aylık harcama: yakıt türüne göre üst üste çubuklar. Litre fiyatı: yakıt başına çizgi.
+    // GRAFİKLER (Sürüm 1.5, 1.5.1'de ay görünümü sadece o ay) — kütüphanesiz SVG, çevrimdışı da çalışır
+    // Ay görünümü: yatay eksen ayın günleri (1–31); her dolum kendi gününde.
+    // Yıl görünümü: yatay eksen o yılın 12 ayı.
+    // Aylık/günlük harcama: yakıt türüne göre üst üste çubuklar. Litre fiyatı: yakıt başına çizgi.
     // Renk yakıta bağlıdır (LPG hep mavi, Benzin turuncu, Dizel mor), sırası değişmez.
-    // Bir aya dokununca iki grafikte de o ay seçilir ve altında rakamları yazar.
+    // Bir güne/aya dokununca iki grafikte de seçilir, altında rakamları yazar, diğerleri soluklaşır.
     // -----------------------------------------------------
     const SVG_NS = "http://www.w3.org/2000/svg";
     const GRAFIK_RENK = { LPG: "var(--g-lpg)", BENZIN: "var(--g-benzin)", DIZEL: "var(--g-dizel)" };
     const G_YUKSEKLIK = 180, G_SOL = 44, G_SAG = 8, G_UST = 10, G_ALT = 22;
     const kisaSayi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 1 });   // eksen yazıları: "2,5 bin"
 
-    // Grafikte gösterilecek 12 ay
-    function grafikAylari() {
+    // Grafiğin yatay eksenindeki dilimler: { anahtar (tarihin başı), etiket (eksen), ad (ayrıntı yazısı), yazilsin }
+    function grafikDilimleri() {
       if (gorunum === "yil") {
         const y = seciliAy.slice(0, 4);
-        return Array.from({ length: 12 }, (_, i) => y + "-" + ikiHane(i + 1));
+        return Array.from({ length: 12 }, (_, i) => {
+          const ay = y + "-" + ikiHane(i + 1);
+          return { anahtar: ay, etiket: kisaAy(ay), ad: ayYazisi(ay), yazilsin: i % 2 === 0 };
+        });
       }
-      return Array.from({ length: 12 }, (_, i) => ayKaydir(seciliAy, i - 11));
+      const [y, a] = seciliAy.split("-").map(Number);
+      const gunSayisi = new Date(y, a, 0).getDate();
+      return Array.from({ length: gunSayisi }, (_, i) => ({
+        anahtar: seciliAy + "-" + ikiHane(i + 1),
+        etiket: String(i + 1),
+        ad: (i + 1) + " " + AY_ADLARI[a - 1],
+        yazilsin: [1, 8, 15, 22, 29].includes(i + 1)
+      }));
     }
+    let grafikSecim = null;   // seçili dilimin anahtarı ("2026-08-05" ya da "2026-03"); null ise seçim yok
 
-    // Eksen için "yuvarlak" adım: 0..ust aralığını yaklaşık 3 parçaya böler
+    // Eksen için "yuvarlak" adım: aralığı yaklaşık 3 parçaya böler
     function guzelAdim(aralik) {
       const ham = aralik / 3;
       const us = Math.pow(10, Math.floor(Math.log10(ham)));
@@ -1651,28 +1662,28 @@
       return e;
     }
 
-    // Ortak iskelet: ızgara çizgileri, y ekseni yazıları, ay adları. Ölçek fonksiyonlarını döner.
-    function grafikIskelet(svg, aylar, alt, ust, adim, yaziBicim) {
+    // Ortak iskelet: ızgara çizgileri, y ekseni yazıları, eksen etiketleri. Ölçek fonksiyonlarını döner.
+    function grafikIskelet(svg, dilimler, alt, ust, adim, yaziBicim) {
       svg.innerHTML = "";
       const G = Math.max(260, svg.clientWidth || svg.parentNode.clientWidth - 32 || 320);
       svg.setAttribute("viewBox", "0 0 " + G + " " + G_YUKSEKLIK);
       svg.setAttribute("height", G_YUKSEKLIK);
-      const cizimG = G - G_SOL - G_SAG, cizimY = G_YUKSEKLIK - G_UST - G_ALT;
-      const yOlcek = v => G_UST + cizimY - (v - alt) / (ust - alt) * cizimY;
-      const dilim = cizimG / aylar.length;
+      const cizimG = G - G_SOL - G_SAG, cizimY = G_UST + (G_YUKSEKLIK - G_UST - G_ALT);
+      const yOlcek = v => cizimY - (v - alt) / (ust - alt) * (G_YUKSEKLIK - G_UST - G_ALT);
+      const dilim = cizimG / dilimler.length;
       const xOrta = i => G_SOL + dilim * (i + 0.5);
       for (let v = alt; v <= ust + adim / 1000; v += adim) {
         svgEleman("line", { class: "izgara", x1: G_SOL, x2: G - G_SAG, y1: yOlcek(v), y2: yOlcek(v) }, svg);
         const t = svgEleman("text", { x: G_SOL - 6, y: yOlcek(v) + 4, "text-anchor": "end" }, svg);
         t.textContent = yaziBicim(v);
       }
-      aylar.forEach((ay, i) => {
-        // Dar ekranda her ay yazılamazsa birer atlayarak yaz (seçili ay her zaman yazılır)
-        if (dilim < 24 && i % 2 === 1 && ay !== grafikAy) return;
+      dilimler.forEach((d, i) => {
+        // Geniş ekranda (yıl görünümü) her ay yazılır; dar dilimde seçili olanlar ve seçili dilim
+        if (!(d.yazilsin || dilim >= 24 || d.anahtar === grafikSecim)) return;
         const t = svgEleman("text", { x: xOrta(i), y: G_YUKSEKLIK - 6, "text-anchor": "middle" }, svg);
-        t.textContent = kisaAy(ay);
+        t.textContent = d.etiket;
       });
-      return { G, dilim, xOrta, yOlcek, cizimY };
+      return { G, dilim, xOrta, yOlcek };
     }
 
     function lejantYaz(kutuId, kodlar) {
@@ -1681,42 +1692,45 @@
     }
 
     function grafikleriCiz(sirali) {
-      const aylar = grafikAylari();
-      const ayVeri = aylar.map(ay => {
-        const kayitlar = sirali.filter(k => k.tarih.startsWith(ay));
-        const v = { ay, toplam: 0, tutar: {}, fiyat: {} };
+      const dilimler = grafikDilimleri();
+      const veri = dilimler.map(d => {
+        const kayitlar = sirali.filter(k => k.tarih.startsWith(d.anahtar));
+        const v = { d, toplam: 0, tutar: {}, litre: {}, fiyat: {}, dolum: kayitlar.length };
         YAKIT_KODLARI.forEach(kod => {
           const liste = kayitlar.filter(k => k.tur === kod);
           const tutar = topla(liste, "tutar"), litre = topla(liste, "litre");
           v.tutar[kod] = tutar;
+          v.litre[kod] = litre;
           v.fiyat[kod] = litre > 0 ? tutar / litre : null;
           v.toplam += tutar;
         });
         return v;
       });
-      const kodlar = YAKIT_KODLARI.filter(kod => ayVeri.some(v => v.tutar[kod] > 0));
+      const kodlar = YAKIT_KODLARI.filter(kod => veri.some(v => v.tutar[kod] > 0));
       const veriVar = kodlar.length > 0;
       el("kart-harcama-grafik").hidden = !veriVar;
       el("kart-fiyat-grafik").hidden = !veriVar;
       if (!veriVar) return;
 
-      // Seçili ay grafik aralığında değilse: ay görünümünde seçili ay, yıl görünümünde seçim yok
-      if (!aylar.includes(grafikAy)) grafikAy = gorunum === "ay" ? seciliAy : null;
-      const secili = aylar.indexOf(grafikAy);
-      el("harcama-grafik-baslik").textContent = gorunum === "ay" ? "Aylık harcama (son 12 ay)" : "Aylık harcama";
+      const ayMi = gorunum === "ay";
+      if (!dilimler.some(d => d.anahtar === grafikSecim)) grafikSecim = null;
+      const secili = dilimler.findIndex(d => d.anahtar === grafikSecim);
+      const ipucu = "<small>Ayrıntı için bir " + (ayMi ? "dolum çubuğuna" : "aya") + " dokun.</small>";
+      el("harcama-grafik-baslik").textContent = ayMi ? "Dolumlar (" + ayYazisi(seciliAy) + ")" : "Aylık harcama (" + seciliAy.slice(0, 4) + ")";
+      el("fiyat-grafik-baslik").textContent = ayMi ? "Litre fiyatı (₺/L)" : "Litre fiyatı (aylık ortalama ₺/L)";
       lejantYaz("harcama-lejant", kodlar);
       lejantYaz("fiyat-lejant", kodlar);
 
-      // --- Aylık harcama: üst üste çubuklar ---
+      // --- Harcama: üst üste çubuklar ---
       const svg1 = el("harcama-grafik");
-      const enCok = Math.max(...ayVeri.map(v => v.toplam));
+      const enCok = Math.max(...veri.map(v => v.toplam));
       const adim1 = guzelAdim(enCok);
-      const o1 = grafikIskelet(svg1, aylar, 0, Math.ceil(enCok / adim1) * adim1, adim1,
+      const o1 = grafikIskelet(svg1, dilimler, 0, Math.ceil(enCok / adim1) * adim1, adim1,
         v => v >= 1000 ? kisaSayi.format(v / 1000) + " bin" : kisaSayi.format(v));
-      const cubukG = Math.min(22, o1.dilim * 0.62);
-      ayVeri.forEach((v, i) => {
+      const cubukG = Math.max(4, Math.min(22, o1.dilim * (ayMi ? 0.8 : 0.62)));
+      veri.forEach((v, i) => {
         if (!(v.toplam > 0)) return;
-        const grup = svgEleman("g", grafikDokunuldu && secili >= 0 && i !== secili ? { class: "soluk" } : {}, svg1);
+        const grup = svgEleman("g", secili >= 0 && i !== secili ? { class: "soluk" } : {}, svg1);
         const x = o1.xOrta(i) - cubukG / 2;
         let taban = o1.yOlcek(0);
         const parcalar = kodlar.filter(kod => v.tutar[kod] > 0);
@@ -1724,8 +1738,7 @@
           // Parça yüksekliği; üstteki parçalardan 2px boşluk düşülür (parçalar ayrı görünsün)
           const h = Math.max(1, o1.yOlcek(0) - o1.yOlcek(v.tutar[kod]) - (j > 0 ? 2 : 0));
           const y = taban - h;
-          const enUstte = j === parcalar.length - 1;
-          const r = enUstte ? Math.min(4, h / 2, cubukG / 2) : 0;                // sadece en üst köşeler yuvarlak
+          const r = j === parcalar.length - 1 ? Math.min(4, h / 2, cubukG / 2) : 0;   // sadece en üst köşeler yuvarlak
           svgEleman("path", {
             d: "M" + x + "," + taban + "V" + (y + r) + "Q" + x + "," + y + " " + (x + r) + "," + y +
                "H" + (x + cubukG - r) + "Q" + (x + cubukG) + "," + y + " " + (x + cubukG) + "," + (y + r) +
@@ -1735,72 +1748,73 @@
           taban = y - 2;
         });
       });
-      el("harcama-detay").innerHTML = secili >= 0 ? harcamaDetayi(ayVeri[secili], kodlar) :
-        "<small>Ayrıntı için bir aya dokun.</small>";
+      el("harcama-detay").innerHTML = secili >= 0 ? harcamaDetayi(veri[secili], kodlar) : ipucu;
 
-      // --- Litre fiyatı: yakıt başına çizgi (kaydı olmayan aylar atlanıp noktalar birleştirilir) ---
+      // --- Litre fiyatı: yakıt başına çizgi (kaydı olmayan dilimler atlanıp noktalar birleştirilir) ---
       const svg2 = el("fiyat-grafik");
-      const fiyatlar = ayVeri.flatMap(v => kodlar.map(kod => v.fiyat[kod]).filter(f => f != null));
+      const fiyatlar = veri.flatMap(v => kodlar.map(kod => v.fiyat[kod]).filter(f => f != null));
       let enAz = Math.min(...fiyatlar), enFazla = Math.max(...fiyatlar);
       if (enFazla - enAz < 1) { enAz -= 1; enFazla += 1; }
       const adim2 = guzelAdim(enFazla - enAz);
       const alt2 = Math.max(0, Math.floor(enAz / adim2) * adim2), ust2 = Math.ceil(enFazla / adim2) * adim2;
-      const o2 = grafikIskelet(svg2, aylar, alt2, ust2, adim2, v => tlBicim.format(v).replace(/,00$/, ""));
+      const o2 = grafikIskelet(svg2, dilimler, alt2, ust2, adim2, v => tlBicim.format(v).replace(/,00$/, ""));
       if (secili >= 0) {
         svgEleman("line", { class: "imlec", x1: o2.xOrta(secili), x2: o2.xOrta(secili), y1: G_UST, y2: o2.yOlcek(alt2) }, svg2);
       }
       kodlar.forEach(kod => {
         let yol = "";
-        ayVeri.forEach((v, i) => {
-          const f = v.fiyat[kod];
-          if (f == null) return;
-          yol += (yol ? "L" : "M") + o2.xOrta(i) + "," + o2.yOlcek(f);
+        veri.forEach((v, i) => {
+          if (v.fiyat[kod] == null) return;
+          yol += (yol ? "L" : "M") + o2.xOrta(i) + "," + o2.yOlcek(v.fiyat[kod]);
         });
         svgEleman("path", { d: yol, fill: "none", stroke: GRAFIK_RENK[kod], "stroke-width": 2,
           "stroke-linejoin": "round", "stroke-linecap": "round" }, svg2);
-        ayVeri.forEach((v, i) => {
+        veri.forEach((v, i) => {
           if (v.fiyat[kod] == null) return;
-          // Seçili ayın noktası büyük ve zemin renginde halkalı, diğerleri küçük
+          // Seçili dilimin noktası büyük ve zemin renginde halkalı, diğerleri küçük
           svgEleman("circle", i === secili
             ? { cx: o2.xOrta(i), cy: o2.yOlcek(v.fiyat[kod]), r: 5, fill: GRAFIK_RENK[kod], stroke: "var(--kart)", "stroke-width": 2 }
             : { cx: o2.xOrta(i), cy: o2.yOlcek(v.fiyat[kod]), r: 3, fill: GRAFIK_RENK[kod] }, svg2);
         });
       });
-      el("fiyat-detay").innerHTML = secili >= 0 ? fiyatDetayi(ayVeri[secili], kodlar) :
-        "<small>Ayrıntı için bir aya dokun.</small>";
+      el("fiyat-detay").innerHTML = secili >= 0 ? fiyatDetayi(veri[secili], kodlar) : ipucu;
     }
 
     function harcamaDetayi(v, kodlar) {
-      if (!(v.toplam > 0)) return "<b>" + ayYazisi(v.ay) + "</b> · kayıt yok";
+      if (!(v.toplam > 0)) return "<b>" + v.d.ad + "</b> · kayıt yok";
       const parcalar = kodlar.filter(kod => v.tutar[kod] > 0)
-        .map(kod => yakitAdi(kod) + " " + tlBicim.format(v.tutar[kod]) + " ₺");
-      return "<b>" + ayYazisi(v.ay) + "</b> · toplam " + tlBicim.format(v.toplam) + " ₺<br><small>" +
+        .map(kod => yakitAdi(kod) + " " + tlBicim.format(v.tutar[kod]) + " ₺ (" + tlBicim.format(v.litre[kod]) + " L)");
+      return "<b>" + v.d.ad + "</b> · " + v.dolum + " dolum · toplam " + tlBicim.format(v.toplam) + " ₺<br><small>" +
         parcalar.join(" · ") + "</small>";
     }
     function fiyatDetayi(v, kodlar) {
       const parcalar = kodlar.filter(kod => v.fiyat[kod] != null)
         .map(kod => yakitAdi(kod) + " " + tlBicim.format(v.fiyat[kod]) + " ₺/L");
-      return "<b>" + ayYazisi(v.ay) + "</b>" + (parcalar.length ? "<br><small>" + parcalar.join(" · ") + "</small>" : " · kayıt yok");
+      return "<b>" + v.d.ad + "</b>" + (parcalar.length ? "<br><small>" + parcalar.join(" · ") + "</small>" : " · kayıt yok");
     }
 
-    // Grafiğe dokununca: dokunulan ayı bul (çubuktan büyük alan: ayın tüm dilimi)
+    // Grafiğe dokununca: dokunulan dilimi bul (çubuktan büyük alan: dilimin tamamı).
+    // Ay görünümünde boş güne dokunulursa en yakın dolumlu gün seçilir (ince çubuklara isabet kolay olsun).
     function grafikDokunma(olay) {
       const svg = olay.currentTarget;
       const kutu = svg.getBoundingClientRect();
       const G = svg.viewBox.baseVal.width || kutu.width;
       const x = (olay.clientX - kutu.left) / kutu.width * G;
-      const dilim = (G - G_SOL - G_SAG) / 12;
-      const i = Math.floor((x - G_SOL) / dilim);
-      if (i < 0 || i > 11) return;
-      const ay = grafikAylari()[i];
-      // Aynı aya ikinci dokunuş seçimi kaldırır (ay görünümünde seçili aya döner)
-      if (grafikAy === ay && grafikDokunuldu) {
-        grafikDokunuldu = false;
-        grafikAy = gorunum === "ay" ? seciliAy : null;
-      } else {
-        grafikDokunuldu = true;
-        grafikAy = ay;
+      const dilimler = grafikDilimleri();
+      const dilim = (G - G_SOL - G_SAG) / dilimler.length;
+      let i = Math.floor((x - G_SOL) / dilim);
+      if (i < 0 || i >= dilimler.length) return;
+      if (gorunum === "ay") {
+        const sirali = siraliKayitlar();
+        const dolu = dilimler.map(d => sirali.some(k => k.tarih === d.anahtar));
+        if (!dolu[i]) {
+          let enYakin = -1;
+          dolu.forEach((v, j) => { if (v && (enYakin < 0 || Math.abs(j - i) < Math.abs(enYakin - i))) enYakin = j; });
+          if (enYakin >= 0 && Math.abs(enYakin - i) <= 2) i = enYakin;
+        }
       }
+      const anahtar = dilimler[i].anahtar;
+      grafikSecim = grafikSecim === anahtar ? null : anahtar;   // aynı yere ikinci dokunuş seçimi kaldırır
       grafikleriCiz(siraliKayitlar());
     }
     el("harcama-grafik").addEventListener("click", grafikDokunma);
@@ -1818,16 +1832,14 @@
       seciliAy = gorunum === "ay" ? ayKaydir(seciliAy, fark) : ayKaydir(seciliAy, fark * 12);
       // Yıl kayınca gelecek aya düşmesin
       if (seciliAy > buAy()) seciliAy = buAy();
-      grafikAy = null;
-      grafikDokunuldu = false;
+      grafikSecim = null;
       ozetGuncelle();
     }
     el("ay-geri").addEventListener("click", () => donemKaydir(-1));
     el("ay-ileri").addEventListener("click", () => donemKaydir(+1));
     el("gorunum-secim").addEventListener("change", () => {
       gorunum = el("gorunum-yil").checked ? "yil" : "ay";
-      grafikAy = null;
-      grafikDokunuldu = false;
+      grafikSecim = null;
       ozetGuncelle();
     });
 
