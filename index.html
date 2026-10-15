@@ -37,6 +37,10 @@
       --benzin: #ea580c;   /* Benzin için turuncu */
       --dizel: #7c3aed;    /* Dizel için mor (Sürüm 1.4) */
       --vurgu: #059669;    /* Genel vurgu (yeşil) */
+      /* Grafik renkleri (Sürüm 1.5): renk körlüğü testinden geçirildi; koyu temada ayrı tonlar */
+      --g-lpg: #2563eb;
+      --g-benzin: #ea580c;
+      --g-dizel: #7c3aed;
     }
 
     /* --- Renkler: telefon karanlık moddaysa koyu tema --- */
@@ -51,6 +55,9 @@
         --benzin: #fb923c;
         --dizel: #a78bfa;
         --vurgu: #34d399;
+        --g-lpg: #3b82f6;
+        --g-benzin: #dd5f12;
+        --g-dizel: #8b5cf6;
         --buton-yazi: #052e22;
       }
     }
@@ -395,6 +402,22 @@
     .ay-secici button:disabled { opacity: .3; }
     .kart-alt { font-size: 13px; color: var(--soluk); margin-top: 6px; line-height: 1.5; white-space: pre-line; }
 
+    /* ---------- AY / YIL GÖRÜNÜMÜ, KARŞILAŞTIRMA, GRAFİKLER (Sürüm 1.5) ---------- */
+    .gorunum-secim { margin-bottom: 12px; }
+    .karsilastirma { font-size: 13px; margin-top: 4px; color: var(--soluk); }
+    .karsilastirma b { font-weight: 600; color: var(--yazi); }
+    .grafik-kart h2 { margin-bottom: 4px; }
+    .lejant { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--soluk); margin: 2px 0 6px; }
+    .lejant span { display: inline-flex; align-items: center; gap: 6px; }
+    .lejant i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .grafik { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
+    .grafik text { font-size: 11px; fill: var(--soluk); font-family: inherit; }
+    .grafik .izgara { stroke: var(--cizgi); stroke-width: 1; }
+    .grafik .soluk { opacity: .35; }
+    .grafik .imlec { stroke: var(--soluk); stroke-width: 1; stroke-dasharray: 3 3; }
+    .grafik-detay { font-size: 13px; color: var(--yazi); min-height: 38px; line-height: 1.45; margin-top: 4px; }
+    .grafik-detay small { color: var(--soluk); font-size: 12px; }
+
     /* ---------- FİŞ OKUMA (Adım 6 / Sürüm 0.7) ---------- */
     /* ---------- YEDEKLEME (Adım 7 / Sürüm 0.8) ---------- */
     .yedek-kart { margin-top: 18px; }
@@ -458,11 +481,24 @@
          BÖLÜM 4: SAYFA — ÖZET (ana sayfa)
          =================================================== -->
     <section class="sayfa aktif" id="sayfa-ozet">
-      <!-- Ay seçici: ‹ Ekim 2026 › (Sürüm 0.6) -->
+      <!-- Ay / Yıl görünümü (Sürüm 1.5) -->
+      <div class="secim gorunum-secim" id="gorunum-secim">
+        <input type="radio" name="gorunum" id="gorunum-ay" value="ay" checked><label for="gorunum-ay">Ay</label>
+        <input type="radio" name="gorunum" id="gorunum-yil" value="yil"><label for="gorunum-yil">Yıl</label>
+      </div>
+      <!-- Dönem seçici: ‹ Ekim 2026 › ya da ‹ 2026 › (Sürüm 0.6, 1.5'te yıl) -->
       <div class="ay-secici">
-        <button type="button" id="ay-geri" aria-label="Önceki ay">‹</button>
+        <button type="button" id="ay-geri" aria-label="Önceki dönem">‹</button>
         <span id="ay-adi"></span>
-        <button type="button" id="ay-ileri" aria-label="Sonraki ay">›</button>
+        <button type="button" id="ay-ileri" aria-label="Sonraki dönem">›</button>
+      </div>
+
+      <!-- Yıl özeti: sadece yıl görünümünde (Sürüm 1.5) -->
+      <div class="kart" id="kart-yil" hidden>
+        <h2>Yıl toplamı</h2>
+        <div class="deger" id="ozet-yil">— ₺</div>
+        <div class="kart-alt" id="ozet-yil-alt"></div>
+        <div class="karsilastirma" id="ozet-yil-fark"></div>
       </div>
 
       <!-- Yakıt kartları: ayarlarda seçili yakıtlar ve o ay kaydı olan yakıtlar görünür (Sürüm 1.4) -->
@@ -470,21 +506,40 @@
         <h2>LPG</h2>
         <div class="deger lpg-renk" id="ozet-LPG">— ₺</div>
         <div class="kart-alt" id="ozet-LPG-alt"></div>
+        <div class="karsilastirma" id="ozet-LPG-fark"></div>
       </div>
       <div class="kart" id="kart-BENZIN">
         <h2>Benzin</h2>
         <div class="deger benzin-renk" id="ozet-BENZIN">— ₺</div>
         <div class="kart-alt" id="ozet-BENZIN-alt"></div>
+        <div class="karsilastirma" id="ozet-BENZIN-fark"></div>
       </div>
       <div class="kart" id="kart-DIZEL">
         <h2>Dizel</h2>
         <div class="deger dizel-renk" id="ozet-DIZEL">— ₺</div>
         <div class="kart-alt" id="ozet-DIZEL-alt"></div>
+        <div class="karsilastirma" id="ozet-DIZEL-fark"></div>
       </div>
       <div class="kart">
         <h2>Km başı toplam maliyet</h2>
         <div class="deger vurgu-renk" id="ozet-km">— ₺/km</div>
         <div class="kart-alt" id="ozet-km-alt"></div>
+        <div class="karsilastirma" id="ozet-km-fark"></div>
+      </div>
+
+      <!-- Grafikler (Sürüm 1.5): ay görünümünde seçili aya kadar son 12 ay, yıl görünümünde o yılın 12 ayı.
+           Bir aya dokununca altında o ayın rakamları yazar. -->
+      <div class="kart grafik-kart" id="kart-harcama-grafik">
+        <h2 id="harcama-grafik-baslik">Aylık harcama</h2>
+        <div class="lejant" id="harcama-lejant"></div>
+        <svg class="grafik" id="harcama-grafik" role="img" aria-label="Aylık yakıt harcaması grafiği"></svg>
+        <div class="grafik-detay" id="harcama-detay"></div>
+      </div>
+      <div class="kart grafik-kart" id="kart-fiyat-grafik">
+        <h2>Litre fiyatı (aylık ortalama ₺/L)</h2>
+        <div class="lejant" id="fiyat-lejant"></div>
+        <svg class="grafik" id="fiyat-grafik" role="img" aria-label="Aylık ortalama litre fiyatı grafiği"></svg>
+        <div class="grafik-detay" id="fiyat-detay"></div>
       </div>
     </section>
 
@@ -522,6 +577,10 @@
         <div class="yan-yana yedek-dugmeler">
           <button type="button" class="ikincil-dugme" id="yedek-al">Yedek al</button>
           <button type="button" class="ikincil-dugme" id="yedek-yukle">Geri yükle</button>
+        </div>
+        <!-- Excel'e aktarma (Sürüm 1.5): CSV dosyası, Türkçe Excel ayarlarıyla doğrudan açılır -->
+        <div class="yan-yana yedek-dugmeler">
+          <button type="button" class="ikincil-dugme" id="csv-aktar">Excel'e aktar (CSV)</button>
         </div>
         <input type="file" id="yedek-dosya" accept=".json,application/json" hidden>
         <div class="fis-durum" id="yedek-durum"></div>
@@ -640,7 +699,7 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "1.4";
+    const SURUM = "1.5";
     document.getElementById("surum").textContent = "Sürüm " + SURUM;
 
     // --- Sekme geçişi ---
@@ -655,6 +714,8 @@
 
       document.getElementById("baslik").textContent = baslik;
       window.scrollTo(0, 0);
+      // Gizliyken çizilen grafiklerin genişliği yanlış olur: Özet açılınca yeniden çiz (Sürüm 1.5)
+      if (ad === "ozet") ozetGuncelle();
     }
 
     // Sadece sayfa açan düğmeler (Özet, Kayıtlar). "Ekle" paneli ayrıca açılır.
@@ -1236,6 +1297,67 @@
       basarili();
     });
 
+    // -----------------------------------------------------
+    // EXCEL'E AKTARMA (Sürüm 1.5)
+    // CSV: Türkçe Excel'in beklediği biçim — ayırıcı ";" , ondalık virgül, tarih GG.AA.YYYY,
+    // başta UTF-8 işareti (BOM) ki Türkçe harfler bozuk çıkmasın. Eskiden yeniye sıralı.
+    // iPhone'da paylaşım menüsü (Dosyalara Kaydet / e-posta), yoksa indirme.
+    // -----------------------------------------------------
+    function csvHucre(deger) {
+      const s = deger == null ? "" : String(deger);
+      return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }
+    const csvSayi = (n, hane) => typeof n === "number" && isFinite(n) ? n.toFixed(hane).replace(".", ",") : "";
+
+    function csvOlustur(kayitlar) {
+      const satirlar = [["Tarih", "Saat", "Yakıt", "Litre", "Litre Fiyatı (₺)", "Tutar (₺)", "Gidilen KM", "L/100 km", "İstasyon"]];
+      kayitlar.forEach(k => {
+        const km = gidilenKmBul(k);
+        const fiyat = k.fiyat || (k.litre ? k.tutar / k.litre : null);
+        satirlar.push([
+          k.tarih.slice(8, 10) + "." + k.tarih.slice(5, 7) + "." + k.tarih.slice(0, 4),
+          k.saat || "",
+          yakitAdi(k.tur),
+          csvSayi(k.litre, 2),
+          csvSayi(fiyat, 2),
+          csvSayi(k.tutar, 2),
+          km != null ? csvSayi(km, 1) : "",
+          km > 0 ? csvSayi(k.litre / km * 100, 1) : "",
+          k.istasyon || ""
+        ]);
+      });
+      return "﻿" + satirlar.map(s => s.map(csvHucre).join(";")).join("\r\n") + "\r\n";
+    }
+
+    el("csv-aktar").addEventListener("click", async () => {
+      const kayitlar = siraliKayitlar();
+      if (!kayitlar.length) return yedekDurum("Aktarılacak kayıt yok.", "uyari");
+      const simdi = new Date();
+      const dosyaAdi = "yakit-kayitlari-" + simdi.getFullYear() + "-" + ikiHane(simdi.getMonth() + 1) + "-" +
+        ikiHane(simdi.getDate()) + ".csv";
+      const dosya = new File([csvOlustur(kayitlar)], dosyaAdi, { type: "text/csv" });
+      const tamam = () => yedekDurum("✓ " + kayitlar.length + " kayıt Excel dosyasına aktarıldı (" + dosyaAdi + ").");
+
+      if (navigator.canShare && navigator.canShare({ files: [dosya] })) {
+        try {
+          await navigator.share({ files: [dosya] });
+          tamam();
+        } catch (e) {
+          if (e.name !== "AbortError") yedekDurum("Paylaşım açılamadı: " + e.message, "hata");
+        }
+        return;
+      }
+      const adres = URL.createObjectURL(dosya);
+      const a = document.createElement("a");
+      a.href = adres;
+      a.download = dosyaAdi;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(adres), 2000);
+      tamam();
+    });
+
     // Bir kaydın yapısı doğru mu? (bozuk ya da başka dosyadan gelen veriyi alma)
     function gecerliKayit(k) {
       return k && typeof k === "object" &&
@@ -1346,16 +1468,22 @@
     }
 
     // =====================================================
-    // ÖZET SAYFASI (Adım 5 / Sürüm 0.6, 1.4'te Dizel ve yakıt ayarları)
-    // Km başı maliyet = ayın tüm yakıt tutarı ÷ ayın gidilen km toplamı.
+    // ÖZET SAYFASI (Adım 5 / Sürüm 0.6, 1.4'te Dizel ve yakıt ayarları, 1.5'te yıl görünümü,
+    // önceki döneme göre karşılaştırma ve grafikler)
+    // Km başı maliyet = dönemin tüm yakıt tutarı ÷ dönemin gidilen km toplamı.
     // Km sadece ana yakıt kayıtlarında girilir (aynı yol iki kez sayılmaz); toplam,
     // türe bakmadan km'si olan kayıtlardan alınır (ana yakıt sonradan değişse de eski aylar doğru kalır).
+    // Dönem: ay görünümünde "2026-10", yıl görünümünde "2026". Kayıt tarihi bu yazıyla başlıyorsa
+    // o döneme aittir (k.tarih.startsWith(donem)).
     // =====================================================
     function buAy() {
       const s = new Date();
       return s.getFullYear() + "-" + ikiHane(s.getMonth() + 1);
     }
-    let seciliAy = buAy();   // "2026-10" biçiminde
+    let gorunum = "ay";      // "ay" ya da "yil"
+    let seciliAy = buAy();   // "2026-10" biçiminde (yıl görünümünde yılı buradan alınır)
+    let grafikAy = null;     // grafikte ayrıntısı gösterilen ay ("2026-03"); null ise seçim yok
+    let grafikDokunuldu = false;   // kullanıcı bir aya dokunduysa diğer aylar soluklaşır
 
     // "2026-10" → bir ay ileri/geri
     function ayKaydir(ay, fark) {
@@ -1363,61 +1491,345 @@
       const t = new Date(y, a - 1 + fark, 1);
       return t.getFullYear() + "-" + ikiHane(t.getMonth() + 1);
     }
+    const ayYazisi = ay => AY_ADLARI[+ay.slice(5, 7) - 1] + " " + ay.slice(0, 4);
+    const kisaAy = ay => AY_ADLARI[+ay.slice(5, 7) - 1].slice(0, 3);
+    const topla = (liste, alan) => liste.reduce((t, k) => t + (k[alan] || 0), 0);
+    const kmTopla = liste => liste.reduce((t, k) => t + (gidilenKmBul(k) || 0), 0);
+
+    // Seçili dönem ve karşılaştırılacak önceki dönem.
+    // Yıl görünümünde bu yıl seçiliyse, geçen yılın AYNI DÖNEMİ (Ocak–bu ay) ile karşılaştırılır,
+    // yoksa yarım yıl tam yılla kıyaslanıp hep "düşüş" görünürdü.
+    function donemBilgisi() {
+      if (gorunum === "ay") {
+        const onceki = ayKaydir(seciliAy, -1);
+        return {
+          ad: ayYazisi(seciliAy),
+          icinde: k => k.tarih.startsWith(seciliAy),
+          oncekiIcinde: k => k.tarih.startsWith(onceki),
+          karsilastirmaAdi: "Geçen aya göre" + (seciliAy === buAy() ? " (ay sürüyor)" : ""),
+          oncekiAdi: "Geçen ay"
+        };
+      }
+      const yil = seciliAy.slice(0, 4);
+      const oncekiYil = String(+yil - 1);
+      const buYilMi = yil === buAy().slice(0, 4);
+      const sonAy = buAy().slice(5, 7);
+      return {
+        ad: yil,
+        icinde: k => k.tarih.startsWith(yil),
+        oncekiIcinde: k => k.tarih.startsWith(oncekiYil) && (!buYilMi || k.tarih.slice(5, 7) <= sonAy),
+        karsilastirmaAdi: buYilMi ? "Geçen yılın aynı dönemine göre" : "Geçen yıla göre",
+        oncekiAdi: buYilMi ? "Geçen yıl aynı dönem" : "Geçen yıl"
+      };
+    }
+
+    // "Geçen aya göre ▲ %12 (+150,00 ₺)" yazısı. Önceki dönemde kayıt yoksa boş.
+    function farkYazisi(simdi, onceki, d) {
+      if (!(onceki > 0) || !(simdi > 0)) return "";
+      const fark = simdi - onceki;
+      const yuzde = Math.round(Math.abs(fark) / onceki * 100);
+      if (yuzde === 0) return d.karsilastirmaAdi + ": <b>aynı</b>";
+      return d.karsilastirmaAdi + ": <b>" + (fark > 0 ? "▲ %" : "▼ %") + yuzde + "</b> (" +
+        (fark > 0 ? "+" : "−") + tlBicim.format(Math.abs(fark)) + " ₺)";
+    }
 
     function ozetGuncelle() {
       const sirali = siraliKayitlar();
-      const ayKayitlari = sirali.filter(k => k.tarih.slice(0, 7) === seciliAy);
       const ayar = ayarlariOku();
-      const topla = (liste, alan) => liste.reduce((t, k) => t + (k[alan] || 0), 0);
+      const d = donemBilgisi();
+      const donemKayitlari = sirali.filter(d.icinde);
+      const oncekiKayitlar = sirali.filter(d.oncekiIcinde);
+      const bosYazi = gorunum === "ay" ? "Bu ayda kayıt yok" : "Bu yılda kayıt yok";
 
-      // Ay başlığı ve ok düğmeleri
-      const [yil, ayNo] = seciliAy.split("-");
-      el("ay-adi").textContent = AY_ADLARI[+ayNo - 1] + " " + yil;
-      el("ay-ileri").disabled = seciliAy >= buAy();
+      // Dönem başlığı ve ok düğmeleri (ileri en fazla bugün, geri en eski kayda kadar)
+      el("ay-adi").textContent = d.ad;
       const enEskiAy = sirali.length ? sirali[0].tarih.slice(0, 7) : buAy();
-      el("ay-geri").disabled = seciliAy <= enEskiAy;
+      if (gorunum === "ay") {
+        el("ay-ileri").disabled = seciliAy >= buAy();
+        el("ay-geri").disabled = seciliAy <= enEskiAy;
+      } else {
+        el("ay-ileri").disabled = seciliAy.slice(0, 4) >= buAy().slice(0, 4);
+        el("ay-geri").disabled = seciliAy.slice(0, 4) <= enEskiAy.slice(0, 4);
+      }
 
       // Bir yakıt türünün kartını doldurur
-      function kartDoldur(liste, degerId, altId) {
+      function kartDoldur(liste, kod) {
         const tutar = topla(liste, "tutar");
         const litre = topla(liste, "litre");
-        el(degerId).textContent = liste.length ? tlBicim.format(tutar) + " ₺" : "— ₺";
-        el(altId).textContent = liste.length
-          ? liste.length + " dolum · " + tlBicim.format(litre) + " L · ort. " +
-            tlBicim.format(tutar / litre) + " ₺/L"
-          : "Bu ayda kayıt yok";
-      }
-      // Her yakıtın kartı: ayarlarda seçiliyse ya da bu ay kaydı varsa görünür
-      const ayYakitlari = [];   // bu ay kaydı olan yakıtlar (km kartındaki açıklama için)
-      YAKIT_KODLARI.forEach(kod => {
-        const liste = ayKayitlari.filter(k => k.tur === kod);
-        if (liste.length) ayYakitlari.push(yakitAdi(kod));
-        el("kart-" + kod).hidden = !ayar.yakitlar.includes(kod) && !liste.length;
-        kartDoldur(liste, "ozet-" + kod, "ozet-" + kod + "-alt");
+        el("ozet-" + kod).textContent = liste.length ? tlBicim.format(tutar) + " ₺" : "— ₺";
+        let alt = liste.length
+          ? liste.length + " dolum · " + tlBicim.format(litre) + " L · ort. " + tlBicim.format(tutar / litre) + " ₺/L"
+          : bosYazi;
         const tuketim = yuzKmTuketim(liste, kod);
-        if (tuketim != null) {
-          el("ozet-" + kod + "-alt").textContent += "\nOrtalama tüketim: " + tuketimBicim.format(tuketim) + " L/100 km";
-        }
+        if (tuketim != null) alt += "\nOrtalama tüketim: " + tuketimBicim.format(tuketim) + " L/100 km";
+        el("ozet-" + kod + "-alt").textContent = alt;
+        const onceki = topla(oncekiKayitlar.filter(k => k.tur === kod), "tutar");
+        el("ozet-" + kod + "-fark").innerHTML = farkYazisi(tutar, onceki, d);
+      }
+      // Her yakıtın kartı: ayarlarda seçiliyse ya da bu dönemde kaydı varsa görünür
+      const donemYakitlari = [];   // bu dönemde kaydı olan yakıtlar (km kartındaki açıklama için)
+      YAKIT_KODLARI.forEach(kod => {
+        const liste = donemKayitlari.filter(k => k.tur === kod);
+        if (liste.length) donemYakitlari.push(yakitAdi(kod));
+        el("kart-" + kod).hidden = !ayar.yakitlar.includes(kod) && !liste.length;
+        kartDoldur(liste, kod);
       });
 
       // Km başı maliyet
-      const toplamTutar = topla(ayKayitlari, "tutar");
-      const toplamKm = ayKayitlari.reduce((t, k) => t + (gidilenKmBul(k) || 0), 0);
+      const toplamTutar = topla(donemKayitlari, "tutar");
+      const toplamKm = kmTopla(donemKayitlari);
       if (toplamKm > 0) {
         el("ozet-km").textContent = tlBicim.format(toplamTutar / toplamKm) + " ₺/km";
         el("ozet-km-alt").textContent = kmYazisi(toplamKm) + " km · toplam " +
           tlBicim.format(toplamTutar) + " ₺" +
-          (ayYakitlari.length > 1 ? " (" + ayYakitlari.join(" + ") + ")" : "");
+          (donemYakitlari.length > 1 ? " (" + donemYakitlari.join(" + ") + ")" : "");
       } else {
         el("ozet-km").textContent = "— ₺/km";
-        el("ozet-km-alt").textContent = ayKayitlari.length
-          ? "Bu ay " + yakitAdi(ayar.anaYakit) + " kayıtlarında gidilen km girilmemiş."
-          : "Bu ayda kayıt yok";
+        el("ozet-km-alt").textContent = donemKayitlari.length
+          ? (gorunum === "ay" ? "Bu ay " : "Bu yıl ") + yakitAdi(ayar.anaYakit) + " kayıtlarında gidilen km girilmemiş."
+          : bosYazi;
       }
+      const oncekiKm = kmTopla(oncekiKayitlar);
+      el("ozet-km-fark").innerHTML = toplamKm > 0 && oncekiKm > 0
+        ? d.oncekiAdi + ": <b>" + tlBicim.format(topla(oncekiKayitlar, "tutar") / oncekiKm) + " ₺/km</b>"
+        : "";
+
+      // Yıl toplamı kartı (sadece yıl görünümünde)
+      el("kart-yil").hidden = gorunum !== "yil";
+      if (gorunum === "yil") {
+        el("ozet-yil").textContent = donemKayitlari.length ? tlBicim.format(toplamTutar) + " ₺" : "— ₺";
+        if (donemKayitlari.length) {
+          const aylik = {};
+          donemKayitlari.forEach(k => { const a = k.tarih.slice(0, 7); aylik[a] = (aylik[a] || 0) + k.tutar; });
+          const aylar = Object.keys(aylik);
+          const enPahali = aylar.reduce((m, a) => aylik[a] > aylik[m] ? a : m, aylar[0]);
+          el("ozet-yil-alt").textContent =
+            donemKayitlari.length + " dolum" + (toplamKm > 0 ? " · " + kmYazisi(toplamKm) + " km" : "") +
+            " · aylık ort. " + tlBicim.format(toplamTutar / aylar.length) + " ₺\n" +
+            "En pahalı ay: " + AY_ADLARI[+enPahali.slice(5, 7) - 1] + " (" + tlBicim.format(aylik[enPahali]) + " ₺)";
+        } else {
+          el("ozet-yil-alt").textContent = bosYazi;
+        }
+        el("ozet-yil-fark").innerHTML = farkYazisi(toplamTutar, topla(oncekiKayitlar, "tutar"), d);
+      }
+
+      grafikleriCiz(sirali);
     }
 
-    el("ay-geri").addEventListener("click", () => { seciliAy = ayKaydir(seciliAy, -1); ozetGuncelle(); });
-    el("ay-ileri").addEventListener("click", () => { seciliAy = ayKaydir(seciliAy, +1); ozetGuncelle(); });
+    // -----------------------------------------------------
+    // GRAFİKLER (Sürüm 1.5) — kütüphanesiz, SVG ile çizilir (çevrimdışı da çalışır)
+    // Aylık harcama: yakıt türüne göre üst üste çubuklar. Litre fiyatı: yakıt başına çizgi.
+    // Renk yakıta bağlıdır (LPG hep mavi, Benzin turuncu, Dizel mor), sırası değişmez.
+    // Bir aya dokununca iki grafikte de o ay seçilir ve altında rakamları yazar.
+    // -----------------------------------------------------
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const GRAFIK_RENK = { LPG: "var(--g-lpg)", BENZIN: "var(--g-benzin)", DIZEL: "var(--g-dizel)" };
+    const G_YUKSEKLIK = 180, G_SOL = 44, G_SAG = 8, G_UST = 10, G_ALT = 22;
+    const kisaSayi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 1 });   // eksen yazıları: "2,5 bin"
+
+    // Grafikte gösterilecek 12 ay
+    function grafikAylari() {
+      if (gorunum === "yil") {
+        const y = seciliAy.slice(0, 4);
+        return Array.from({ length: 12 }, (_, i) => y + "-" + ikiHane(i + 1));
+      }
+      return Array.from({ length: 12 }, (_, i) => ayKaydir(seciliAy, i - 11));
+    }
+
+    // Eksen için "yuvarlak" adım: 0..ust aralığını yaklaşık 3 parçaya böler
+    function guzelAdim(aralik) {
+      const ham = aralik / 3;
+      const us = Math.pow(10, Math.floor(Math.log10(ham)));
+      const oran = ham / us;
+      return (oran <= 1 ? 1 : oran <= 2 ? 2 : oran <= 2.5 ? 2.5 : oran <= 5 ? 5 : 10) * us;
+    }
+
+    function svgEleman(ad, ozellikler, ebeveyn) {
+      const e = document.createElementNS(SVG_NS, ad);
+      Object.entries(ozellikler).forEach(([k, v]) => e.setAttribute(k, v));
+      if (ebeveyn) ebeveyn.appendChild(e);
+      return e;
+    }
+
+    // Ortak iskelet: ızgara çizgileri, y ekseni yazıları, ay adları. Ölçek fonksiyonlarını döner.
+    function grafikIskelet(svg, aylar, alt, ust, adim, yaziBicim) {
+      svg.innerHTML = "";
+      const G = Math.max(260, svg.clientWidth || svg.parentNode.clientWidth - 32 || 320);
+      svg.setAttribute("viewBox", "0 0 " + G + " " + G_YUKSEKLIK);
+      svg.setAttribute("height", G_YUKSEKLIK);
+      const cizimG = G - G_SOL - G_SAG, cizimY = G_YUKSEKLIK - G_UST - G_ALT;
+      const yOlcek = v => G_UST + cizimY - (v - alt) / (ust - alt) * cizimY;
+      const dilim = cizimG / aylar.length;
+      const xOrta = i => G_SOL + dilim * (i + 0.5);
+      for (let v = alt; v <= ust + adim / 1000; v += adim) {
+        svgEleman("line", { class: "izgara", x1: G_SOL, x2: G - G_SAG, y1: yOlcek(v), y2: yOlcek(v) }, svg);
+        const t = svgEleman("text", { x: G_SOL - 6, y: yOlcek(v) + 4, "text-anchor": "end" }, svg);
+        t.textContent = yaziBicim(v);
+      }
+      aylar.forEach((ay, i) => {
+        // Dar ekranda her ay yazılamazsa birer atlayarak yaz (seçili ay her zaman yazılır)
+        if (dilim < 24 && i % 2 === 1 && ay !== grafikAy) return;
+        const t = svgEleman("text", { x: xOrta(i), y: G_YUKSEKLIK - 6, "text-anchor": "middle" }, svg);
+        t.textContent = kisaAy(ay);
+      });
+      return { G, dilim, xOrta, yOlcek, cizimY };
+    }
+
+    function lejantYaz(kutuId, kodlar) {
+      el(kutuId).innerHTML = kodlar.map(kod =>
+        '<span><i style="background:' + GRAFIK_RENK[kod] + '"></i>' + yakitAdi(kod) + "</span>").join("");
+    }
+
+    function grafikleriCiz(sirali) {
+      const aylar = grafikAylari();
+      const ayVeri = aylar.map(ay => {
+        const kayitlar = sirali.filter(k => k.tarih.startsWith(ay));
+        const v = { ay, toplam: 0, tutar: {}, fiyat: {} };
+        YAKIT_KODLARI.forEach(kod => {
+          const liste = kayitlar.filter(k => k.tur === kod);
+          const tutar = topla(liste, "tutar"), litre = topla(liste, "litre");
+          v.tutar[kod] = tutar;
+          v.fiyat[kod] = litre > 0 ? tutar / litre : null;
+          v.toplam += tutar;
+        });
+        return v;
+      });
+      const kodlar = YAKIT_KODLARI.filter(kod => ayVeri.some(v => v.tutar[kod] > 0));
+      const veriVar = kodlar.length > 0;
+      el("kart-harcama-grafik").hidden = !veriVar;
+      el("kart-fiyat-grafik").hidden = !veriVar;
+      if (!veriVar) return;
+
+      // Seçili ay grafik aralığında değilse: ay görünümünde seçili ay, yıl görünümünde seçim yok
+      if (!aylar.includes(grafikAy)) grafikAy = gorunum === "ay" ? seciliAy : null;
+      const secili = aylar.indexOf(grafikAy);
+      el("harcama-grafik-baslik").textContent = gorunum === "ay" ? "Aylık harcama (son 12 ay)" : "Aylık harcama";
+      lejantYaz("harcama-lejant", kodlar);
+      lejantYaz("fiyat-lejant", kodlar);
+
+      // --- Aylık harcama: üst üste çubuklar ---
+      const svg1 = el("harcama-grafik");
+      const enCok = Math.max(...ayVeri.map(v => v.toplam));
+      const adim1 = guzelAdim(enCok);
+      const o1 = grafikIskelet(svg1, aylar, 0, Math.ceil(enCok / adim1) * adim1, adim1,
+        v => v >= 1000 ? kisaSayi.format(v / 1000) + " bin" : kisaSayi.format(v));
+      const cubukG = Math.min(22, o1.dilim * 0.62);
+      ayVeri.forEach((v, i) => {
+        if (!(v.toplam > 0)) return;
+        const grup = svgEleman("g", grafikDokunuldu && secili >= 0 && i !== secili ? { class: "soluk" } : {}, svg1);
+        const x = o1.xOrta(i) - cubukG / 2;
+        let taban = o1.yOlcek(0);
+        const parcalar = kodlar.filter(kod => v.tutar[kod] > 0);
+        parcalar.forEach((kod, j) => {
+          // Parça yüksekliği; üstteki parçalardan 2px boşluk düşülür (parçalar ayrı görünsün)
+          const h = Math.max(1, o1.yOlcek(0) - o1.yOlcek(v.tutar[kod]) - (j > 0 ? 2 : 0));
+          const y = taban - h;
+          const enUstte = j === parcalar.length - 1;
+          const r = enUstte ? Math.min(4, h / 2, cubukG / 2) : 0;                // sadece en üst köşeler yuvarlak
+          svgEleman("path", {
+            d: "M" + x + "," + taban + "V" + (y + r) + "Q" + x + "," + y + " " + (x + r) + "," + y +
+               "H" + (x + cubukG - r) + "Q" + (x + cubukG) + "," + y + " " + (x + cubukG) + "," + (y + r) +
+               "V" + taban + "Z",
+            fill: GRAFIK_RENK[kod]
+          }, grup);
+          taban = y - 2;
+        });
+      });
+      el("harcama-detay").innerHTML = secili >= 0 ? harcamaDetayi(ayVeri[secili], kodlar) :
+        "<small>Ayrıntı için bir aya dokun.</small>";
+
+      // --- Litre fiyatı: yakıt başına çizgi (kaydı olmayan aylar atlanıp noktalar birleştirilir) ---
+      const svg2 = el("fiyat-grafik");
+      const fiyatlar = ayVeri.flatMap(v => kodlar.map(kod => v.fiyat[kod]).filter(f => f != null));
+      let enAz = Math.min(...fiyatlar), enFazla = Math.max(...fiyatlar);
+      if (enFazla - enAz < 1) { enAz -= 1; enFazla += 1; }
+      const adim2 = guzelAdim(enFazla - enAz);
+      const alt2 = Math.max(0, Math.floor(enAz / adim2) * adim2), ust2 = Math.ceil(enFazla / adim2) * adim2;
+      const o2 = grafikIskelet(svg2, aylar, alt2, ust2, adim2, v => tlBicim.format(v).replace(/,00$/, ""));
+      if (secili >= 0) {
+        svgEleman("line", { class: "imlec", x1: o2.xOrta(secili), x2: o2.xOrta(secili), y1: G_UST, y2: o2.yOlcek(alt2) }, svg2);
+      }
+      kodlar.forEach(kod => {
+        let yol = "";
+        ayVeri.forEach((v, i) => {
+          const f = v.fiyat[kod];
+          if (f == null) return;
+          yol += (yol ? "L" : "M") + o2.xOrta(i) + "," + o2.yOlcek(f);
+        });
+        svgEleman("path", { d: yol, fill: "none", stroke: GRAFIK_RENK[kod], "stroke-width": 2,
+          "stroke-linejoin": "round", "stroke-linecap": "round" }, svg2);
+        ayVeri.forEach((v, i) => {
+          if (v.fiyat[kod] == null) return;
+          // Seçili ayın noktası büyük ve zemin renginde halkalı, diğerleri küçük
+          svgEleman("circle", i === secili
+            ? { cx: o2.xOrta(i), cy: o2.yOlcek(v.fiyat[kod]), r: 5, fill: GRAFIK_RENK[kod], stroke: "var(--kart)", "stroke-width": 2 }
+            : { cx: o2.xOrta(i), cy: o2.yOlcek(v.fiyat[kod]), r: 3, fill: GRAFIK_RENK[kod] }, svg2);
+        });
+      });
+      el("fiyat-detay").innerHTML = secili >= 0 ? fiyatDetayi(ayVeri[secili], kodlar) :
+        "<small>Ayrıntı için bir aya dokun.</small>";
+    }
+
+    function harcamaDetayi(v, kodlar) {
+      if (!(v.toplam > 0)) return "<b>" + ayYazisi(v.ay) + "</b> · kayıt yok";
+      const parcalar = kodlar.filter(kod => v.tutar[kod] > 0)
+        .map(kod => yakitAdi(kod) + " " + tlBicim.format(v.tutar[kod]) + " ₺");
+      return "<b>" + ayYazisi(v.ay) + "</b> · toplam " + tlBicim.format(v.toplam) + " ₺<br><small>" +
+        parcalar.join(" · ") + "</small>";
+    }
+    function fiyatDetayi(v, kodlar) {
+      const parcalar = kodlar.filter(kod => v.fiyat[kod] != null)
+        .map(kod => yakitAdi(kod) + " " + tlBicim.format(v.fiyat[kod]) + " ₺/L");
+      return "<b>" + ayYazisi(v.ay) + "</b>" + (parcalar.length ? "<br><small>" + parcalar.join(" · ") + "</small>" : " · kayıt yok");
+    }
+
+    // Grafiğe dokununca: dokunulan ayı bul (çubuktan büyük alan: ayın tüm dilimi)
+    function grafikDokunma(olay) {
+      const svg = olay.currentTarget;
+      const kutu = svg.getBoundingClientRect();
+      const G = svg.viewBox.baseVal.width || kutu.width;
+      const x = (olay.clientX - kutu.left) / kutu.width * G;
+      const dilim = (G - G_SOL - G_SAG) / 12;
+      const i = Math.floor((x - G_SOL) / dilim);
+      if (i < 0 || i > 11) return;
+      const ay = grafikAylari()[i];
+      // Aynı aya ikinci dokunuş seçimi kaldırır (ay görünümünde seçili aya döner)
+      if (grafikAy === ay && grafikDokunuldu) {
+        grafikDokunuldu = false;
+        grafikAy = gorunum === "ay" ? seciliAy : null;
+      } else {
+        grafikDokunuldu = true;
+        grafikAy = ay;
+      }
+      grafikleriCiz(siraliKayitlar());
+    }
+    el("harcama-grafik").addEventListener("click", grafikDokunma);
+    el("fiyat-grafik").addEventListener("click", grafikDokunma);
+
+    // Ekran döndürülünce / boyut değişince grafikler yeni genişliğe göre çizilsin
+    let boyutZamanlayici = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(boyutZamanlayici);
+      boyutZamanlayici = setTimeout(() => { if (el("sayfa-ozet").classList.contains("aktif")) ozetGuncelle(); }, 150);
+    });
+
+    // Dönem okları: ay görünümünde bir ay, yıl görünümünde bir yıl kayar
+    function donemKaydir(fark) {
+      seciliAy = gorunum === "ay" ? ayKaydir(seciliAy, fark) : ayKaydir(seciliAy, fark * 12);
+      // Yıl kayınca gelecek aya düşmesin
+      if (seciliAy > buAy()) seciliAy = buAy();
+      grafikAy = null;
+      grafikDokunuldu = false;
+      ozetGuncelle();
+    }
+    el("ay-geri").addEventListener("click", () => donemKaydir(-1));
+    el("ay-ileri").addEventListener("click", () => donemKaydir(+1));
+    el("gorunum-secim").addEventListener("change", () => {
+      gorunum = el("gorunum-yil").checked ? "yil" : "ay";
+      grafikAy = null;
+      grafikDokunuldu = false;
+      ozetGuncelle();
+    });
 
     // =====================================================
     // FİŞ OKUMA (Adım 6 / Sürüm 0.7)
