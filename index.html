@@ -14,52 +14,129 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <!-- Ana ekranda simgenin altında görünecek isim -->
   <meta name="apple-mobile-web-app-title" content="Yakıt">
-  <!-- Durum çubuğunun rengi: başlık çubuğuyla aynı (açık / koyu tema) -->
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#161b26" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" id="tema-rengi" content="#1b1e24">
   <title>Yakıt Takip</title>
   <!-- Ana ekran simgesi (Sürüm 1.0) -->
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="icon" type="image/png" href="icon.png">
+  <script>
+    // Tema ve mod, sayfa çizilmeden önce uygulanır (açılışta renk titremesi olmasın)
+    (function () {
+      var mod = matchMedia("(prefers-color-scheme: dark)").matches ? "koyu" : "acik", tema = "grafit";
+      try {
+        var a = JSON.parse(localStorage.getItem("gorunumAyar_v1"));
+        if (a && (a.mod === "acik" || a.mod === "koyu")) mod = a.mod;
+        if (a && (a.tema === "yonca" || a.tema === "grafit")) tema = a.tema;
+      } catch (e) {}
+      document.documentElement.setAttribute("data-mod", mod);
+      document.documentElement.setAttribute("data-tema", tema);
+    })();
+  </script>
 
   <!-- ===================================================
        BÖLÜM 2: STİLLER (GÖRÜNÜM)
        =================================================== -->
   <style>
-    /* --- Renkler: açık tema --- */
-    :root {
+    /* =====================================================
+       RENK TEMALARI (Sürüm 2.0)
+       html[data-tema] = yonca | grafit        html[data-mod] = acik | koyu
+       Ayarlar sekmesindeki "Görünüm" kutucuğundan seçilir; seçim telefonda saklanır.
+       Yakıt renkleri (--y-*): Yonca'da renkli, Grafit'te gri tonlu. Ayrım ayrıca
+       işaret şekliyle ve çizgi biçimiyle de yapılır (grafikte).
+       ===================================================== */
+    :root,
+    html[data-tema="grafit"][data-mod="acik"] {
+      color-scheme: light;
+      --arkaplan: #eceef1;
+      --kart: #ffffff;
+      --pop: #f4f5f7;          /* açılır pencere zemini */
+      --yazi: #111827;
+      --soluk: #6b7280;
+      --cizgi: #dcdfe4;
+      --vurgu: #374151;
+      --buton-yazi: #ffffff;
+      --cubuk: #d9dce2;        /* üst ve alt çubuk */
+      --aktif: #111827;        /* alt çubukta aktif sekme */
+      --sec-bg: #e3e5ea;       /* seçili öğe: dolgu, çerçeve, yazı */
+      --sec-kenar: #9ca3af;
+      --sec-yazi: #111827;
+      --y-lpg: #374151;
+      --y-benzin: #8a93a3;
+      --y-dizel: #c3c8d1;
+      --halka: #9aa1ad;        /* yakıt işaretinin ince çerçevesi */
+      --hata: #dc2626;
+      --uyari: #b45309;
+      --perde: rgba(17, 24, 39, .45);
+    }
+    html[data-tema="grafit"][data-mod="koyu"] {
+      color-scheme: dark;
+      --arkaplan: #08090b;
+      --kart: #131519;
+      --pop: #101216;
+      --yazi: #f1f2f4;
+      --soluk: #8b9099;
+      --cizgi: #24272e;
+      --vurgu: #cbd5e1;
+      --buton-yazi: #0b0d10;
+      --cubuk: #1b1e24;
+      --aktif: #ffffff;
+      --sec-bg: #252931;
+      --sec-kenar: #4b5360;
+      --sec-yazi: #f1f2f4;
+      --y-lpg: #e2e8f0;
+      --y-benzin: #8f99a8;
+      --y-dizel: #566070;
+      --halka: #6b7482;
+      --hata: #f87171;
+      --uyari: #fbbf24;
+      --perde: rgba(0, 0, 0, .6);
+    }
+    /* Yonca = 2.0 öncesindeki yeşil vurgulu, renkli yakıtlı görünüm */
+    html[data-tema="yonca"][data-mod="acik"] {
+      color-scheme: light;
       --arkaplan: #f3f4f6;
       --kart: #ffffff;
+      --pop: #f9fafb;
       --yazi: #111827;
       --soluk: #6b7280;
       --cizgi: #e5e7eb;
-      --lpg: #2563eb;      /* LPG için mavi */
-      --benzin: #ea580c;   /* Benzin için turuncu */
-      --dizel: #7c3aed;    /* Dizel için mor (Sürüm 1.4) */
-      --vurgu: #059669;    /* Genel vurgu (yeşil) */
-      /* Grafik renkleri (Sürüm 1.5): renk körlüğü testinden geçirildi; koyu temada ayrı tonlar */
-      --g-lpg: #2563eb;
-      --g-benzin: #ea580c;
-      --g-dizel: #7c3aed;
+      --vurgu: #059669;
+      --buton-yazi: #ffffff;
+      --cubuk: #ffffff;
+      --aktif: #059669;
+      --sec-bg: #dcfce7;
+      --sec-kenar: #16a34a;
+      --sec-yazi: #14532d;
+      --y-lpg: #2563eb;
+      --y-benzin: #ea580c;
+      --y-dizel: #7c3aed;
+      --halka: transparent;
+      --hata: #dc2626;
+      --uyari: #b45309;
+      --perde: rgba(0, 0, 0, .45);
     }
-
-    /* --- Renkler: telefon karanlık moddaysa koyu tema --- */
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --arkaplan: #0b0f17;
-        --kart: #161b26;
-        --yazi: #f3f4f6;
-        --soluk: #9ca3af;
-        --cizgi: #263041;
-        --lpg: #60a5fa;
-        --benzin: #fb923c;
-        --dizel: #a78bfa;
-        --vurgu: #34d399;
-        --g-lpg: #3b82f6;
-        --g-benzin: #dd5f12;
-        --g-dizel: #8b5cf6;
-        --buton-yazi: #052e22;
-      }
+    html[data-tema="yonca"][data-mod="koyu"] {
+      color-scheme: dark;
+      --arkaplan: #0b0f17;
+      --kart: #161b26;
+      --pop: #121722;
+      --yazi: #f3f4f6;
+      --soluk: #9ca3af;
+      --cizgi: #263041;
+      --vurgu: #34d399;
+      --buton-yazi: #052e22;
+      --cubuk: #161b26;
+      --aktif: #34d399;
+      --sec-bg: #12382c;
+      --sec-kenar: #34d399;
+      --sec-yazi: #f3f4f6;
+      --y-lpg: #3b82f6;
+      --y-benzin: #dd5f12;
+      --y-dizel: #8b5cf6;
+      --halka: transparent;
+      --hata: #f87171;
+      --uyari: #fbbf24;
+      --perde: rgba(0, 0, 0, .6);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -71,16 +148,18 @@
       -webkit-tap-highlight-color: transparent; /* dokununca gri parlama olmasın */
     }
 
-    /* Üst başlık: çentik (notch) altında kalmasın diye safe-area boşluğu */
+    /* Üst başlık: sabit durur (sayfa kayarken yerinde kalır), sürüm yazısı yok (Sürüm 2.0) */
     header {
+      position: sticky;
+      top: 0;
+      z-index: 8;
       /* Üstte geniş boşluk: iOS 26 durum çubuğunun hemen altını bulanıklaştırıyor,
          başlık o şeridin dışında kalsın (Sürüm 0.4.3) */
       padding: calc(env(safe-area-inset-top) + 34px) 16px 12px;
-      background: var(--kart);
+      background: var(--cubuk);
       border-bottom: 1px solid var(--cizgi);
     }
-    header h1 { font-size: 20px; -webkit-font-smoothing: antialiased; }
-    header small { color: var(--soluk); font-size: 12px; }
+    header h1 { font-size: 20px; font-weight: 600; -webkit-font-smoothing: antialiased; }
 
     /* Sayfa içeriği: alttaki sekme çubuğunun arkasında kalmasın */
     main {
@@ -100,10 +179,6 @@
     }
     .kart h2 { font-size: 15px; color: var(--soluk); font-weight: 500; margin-bottom: 6px; }
     .kart .deger { font-size: 28px; font-weight: 700; }
-    .lpg-renk { color: var(--lpg); }
-    .benzin-renk { color: var(--benzin); }
-    .dizel-renk { color: var(--dizel); }
-    .vurgu-renk { color: var(--vurgu); }
     .bilgi { color: var(--soluk); font-size: 14px; line-height: 1.5; }
 
     /* Alt sekme çubuğu (iPhone ana ekran çizgisinin üstünde dursun) */
@@ -111,7 +186,7 @@
       position: fixed;
       left: 0; right: 0; bottom: 0;
       display: flex;
-      background: var(--kart);
+      background: var(--cubuk);
       border-top: 1px solid var(--cizgi);
       /* iPhone ev çizgisi için boşluk: tamamı değil, yarısı kadar (butonlar aşağıda dursun) */
       padding-bottom: calc(env(safe-area-inset-bottom) * 0.5);
@@ -122,11 +197,26 @@
       border: none;
       padding: 8px 0 6px;
       color: var(--soluk);
-      font-size: 12px;
+      font-size: 11px;
       font-family: inherit;
     }
-    nav button .ikon { display: block; font-size: 22px; margin-bottom: 2px; }
-    nav button.aktif { color: var(--vurgu); font-weight: 600; }
+    nav button svg { display: block; width: 24px; height: 24px; margin: 0 auto 2px; }
+    nav button.aktif { color: var(--aktif); font-weight: 600; }
+
+    /* Yakıt işareti: adın yanındaki küçük kare. Gri temada renk yerine ince çerçeve de ayırt eder. */
+    .isaret {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      flex: none;
+      margin-right: 6px;
+      vertical-align: -1px;
+      box-shadow: 0 0 0 1px var(--halka);
+    }
+    .isaret.buyuk { width: 16px; height: 16px; border-radius: 4px; margin-right: 0; vertical-align: middle; }
+    .is-LPG { background: var(--y-lpg); }
+    .is-BENZIN { background: var(--y-benzin); }
+    .is-DIZEL { background: var(--y-dizel); }
 
     /* ---------- KAYIT FORMU (Adım 3) ---------- */
     .alan { margin-bottom: 14px; }
@@ -151,17 +241,21 @@
     .yan-yana { display: flex; gap: 10px; }
     .yan-yana .alan { flex: 1; min-width: 0; }
 
-    /* Yakıt türü seçim düğmeleri (kayıt formu ve Yakıt ayarları kartı) */
+    /* Seçim düğmeleri (yakıt türü, Ay/Yıl, mod, grafik sekmeleri). Seçili olan: Stil 1 (Sürüm 2.0) */
     .secim {
       display: flex;
       background: var(--arkaplan);
       border: 1px solid var(--cizgi);
       border-radius: 10px;
       padding: 3px;
+      gap: 3px;
     }
     .secim input { display: none; }
     .secim label {
       flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       text-align: center;
       padding: 9px 0;
       margin: 0;
@@ -170,20 +264,18 @@
       color: var(--soluk);
     }
     .secim input:checked + label {
-      background: var(--kart);
-      color: var(--yazi);
+      background: var(--sec-bg);
+      color: var(--sec-yazi);
       font-weight: 600;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
+      box-shadow: 0 0 0 1px var(--sec-kenar);
     }
-    /* Seçili yakıt kendi renginde yazılır (Sürüm 1.4: Dizel eklendi) */
-    .secim input[value="LPG"]:checked + label { color: var(--lpg); }
-    .secim input[value="BENZIN"]:checked + label { color: var(--benzin); }
-    .secim input[value="DIZEL"]:checked + label { color: var(--dizel); }
+    /* Çoklu seçimde (kullanılan yakıtlar) seçili olanda onay işareti çıkar */
+    #ayar-yakitlar input:checked + label::before { content: "\2713\00a0"; }
     .secim [hidden] { display: none; }
 
     /* Kutuların altındaki küçük açıklama / hata yazıları */
     .ipucu { font-size: 13px; color: var(--soluk); margin-top: 6px; min-height: 18px; }
-    .ipucu.hata { color: #dc2626; }
+    .ipucu.hata { color: var(--hata); }
 
     .buton {
       width: 100%;
@@ -193,7 +285,7 @@
       border: none;
       border-radius: 12px;
       background: var(--vurgu);
-      color: var(--buton-yazi, #fff);
+      color: var(--buton-yazi);
       font-family: inherit;
     }
     .buton:active { opacity: .8; }
@@ -213,14 +305,14 @@
       transition: opacity .3s;
       pointer-events: none;
     }
-    .bildirim.goster { opacity: 1; z-index: 30; }
+    .bildirim.goster { opacity: 1; z-index: 60; }
 
-    /* ---------- AÇILIR EKLEME PANELİ (Sürüm 0.3) ---------- */
+    /* ---------- AÇILIR EKLEME PANELİ (Sürüm 0.3) ve GÜN PANELİ (Sürüm 2.0) ---------- */
     /* Arkadaki karartma */
     .perde {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, .45);
+      background: var(--perde);
       opacity: 0;
       pointer-events: none;
       transition: opacity .25s;
@@ -235,7 +327,8 @@
       max-height: calc(100% - env(safe-area-inset-top) - 16px);
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      background: var(--kart);
+      background: var(--pop);
+      border-top: 1px solid var(--cizgi);
       border-radius: 18px 18px 0 0;
       padding: 8px 16px calc(env(safe-area-inset-bottom) + 16px);
       transform: translateY(105%);
@@ -251,12 +344,13 @@
     }
     .panel-ust h2 { font-size: 18px; }
     .kapat {
-      background: var(--arkaplan);
-      border: none;
+      background: var(--kart);
+      border: 1px solid var(--cizgi);
       width: 32px; height: 32px;
       border-radius: 50%;
-      font-size: 16px;
+      font-size: 15px;
       color: var(--soluk);
+      font-family: inherit;
     }
     /* Panel açıkken arkadaki sayfa kaymasın */
     body.panel-acik { overflow: hidden; }
@@ -270,7 +364,7 @@
       border-radius: 50%;
       border: none;
       background: var(--vurgu);
-      color: var(--buton-yazi, #fff);
+      color: var(--buton-yazi);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -280,6 +374,8 @@
     }
     .ekle-dugmesi:active { transform: scale(.92); }
     .ekle-dugmesi svg { width: 26px; height: 26px; }
+    /* Ayarlar sekmesinde kayıt ekleme düğmesi gerekmez */
+    body.ayarlar-acik .ekle-dugmesi { display: none; }
 
     /* Litre / fiyat / tutar: üç kutu yan yana */
     .uclu { display: flex; gap: 8px; }
@@ -297,18 +393,20 @@
     }
     .alan.oto-alan .oto-etiket { display: inline; }
 
-    /* ---------- KAYIT LİSTESİ (Adım 4 / Sürüm 0.5) ---------- */
-    /* Ay başlığı: "Ekim 2026" ve o ayın toplamları */
+    /* ---------- KAYIT LİSTESİ (Adım 4 / Sürüm 0.5, 2.0'da yeni görünüm) ---------- */
+    /* Ay başlığı: "Ekim 2026", o ayın toplamı ve altında yakıt dağılımı */
     .ay-baslik {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin: 18px 4px 8px;
-      font-size: 15px;
+      margin: 18px 4px 4px;
+      font-size: 16px;
       font-weight: 600;
     }
     .ay-baslik:first-child { margin-top: 0; }
-    .ay-baslik small { font-size: 12px; font-weight: 500; color: var(--soluk); }
+    .ay-baslik small { font-size: 13px; font-weight: 500; color: var(--soluk); }
+    .ay-alt { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0 4px 8px; font-size: 12px; color: var(--soluk); }
+    .ay-alt span { display: inline-flex; align-items: center; }
 
     .liste-kart {
       background: var(--kart);
@@ -319,8 +417,9 @@
     /* Bir dolum satırı (dokununca düzenleme açılır) */
     .satir {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 12px;
+      gap: 0 12px;
       width: 100%;
       padding: 12px 14px;
       background: none;
@@ -332,22 +431,6 @@
     }
     .satir:first-child { border-top: none; }
     .satir:active { background: var(--arkaplan); }
-
-    /* Soldaki tür rozeti: LPG mavi, Benzin turuncu */
-    .rozet {
-      flex: none;
-      width: 54px;
-      padding: 5px 0;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 700;
-      text-align: center;
-      color: #fff;
-    }
-    .rozet.LPG { background: var(--lpg); }
-    .rozet.BENZIN { background: var(--benzin); }
-    .rozet.DIZEL { background: var(--dizel); }
-
     .satir-orta { flex: 1; min-width: 0; }
     .satir-ust { font-size: 15px; font-weight: 600; }
     .satir-alt {
@@ -361,6 +444,8 @@
     .satir-sag { flex: none; text-align: right; }
     .satir-tutar { font-size: 16px; font-weight: 700; }
     .satir-km { font-size: 12px; color: var(--soluk); margin-top: 2px; }
+    /* Km bilgisi olan dolumlarda satırın altında ayrı çizgi */
+    .satir-ek { flex-basis: 100%; padding-left: 28px; margin-top: 4px; font-size: 12px; color: var(--soluk); }
 
     /* Hiç kayıt yokken */
     .bos-liste { text-align: center; padding: 40px 20px; }
@@ -375,13 +460,13 @@
       font-weight: 600;
       font-family: inherit;
       border-radius: 12px;
-      border: 1px solid #dc2626;
+      border: 1px solid var(--hata);
       background: none;
-      color: #dc2626;
+      color: var(--hata);
     }
-    .sil-dugmesi.onay { background: #dc2626; color: #fff; }
+    .sil-dugmesi.onay { background: var(--hata); color: var(--kart); }
 
-    /* ---------- ÖZET (Adım 5 / Sürüm 0.6) ---------- */
+    /* ---------- ÖZET (Adım 5 / Sürüm 0.6, 2.0'da kutulu düzen) ---------- */
     .ay-secici {
       display: flex;
       align-items: center;
@@ -401,45 +486,162 @@
     }
     .ay-secici button:disabled { opacity: .3; }
     .kart-alt { font-size: 13px; color: var(--soluk); margin-top: 6px; line-height: 1.5; white-space: pre-line; }
-
-    /* ---------- AY / YIL GÖRÜNÜMÜ, KARŞILAŞTIRMA, GRAFİKLER (Sürüm 1.5) ---------- */
     .gorunum-secim { margin-bottom: 12px; }
     .karsilastirma { font-size: 13px; margin-top: 4px; color: var(--soluk); }
     .karsilastirma b { font-weight: 600; color: var(--yazi); }
-    .grafik-kart h2 { margin-bottom: 4px; }
-    .lejant { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--soluk); margin: 2px 0 6px; }
+
+    /* Dört küçük kutu: toplam, dolum, km başı, 100 km'de tüketim */
+    .kutu-izgara { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .ozet-kutu { background: var(--kart); border: 1px solid var(--cizgi); border-radius: 14px; padding: 12px; min-width: 0; }
+    .ozet-kutu h2 { font-size: 12px; color: var(--soluk); font-weight: 500; margin-bottom: 2px; }
+    .ozet-kutu .deger { font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+    .ozet-kutu .kart-alt, .ozet-kutu .karsilastirma { font-size: 11px; margin-top: 4px; line-height: 1.4; }
+
+    /* "Yakıta göre" kartı: tek çubukta pay oranı + satırlar */
+    .pay-cubuk { display: flex; gap: 2px; height: 10px; margin: 8px 0 8px; }
+    .pay-cubuk span { display: block; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--halka); min-width: 3px; }
+    .yakit-satir { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+    .yakit-satir .orta { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; }
+    .yakit-satir small { display: block; color: var(--soluk); font-size: 12px; font-weight: 400; margin-top: 1px; }
+    .yakit-satir .sag { text-align: right; font-weight: 600; font-size: 15px; }
+
+    /* ---------- GRAFİKLER (Sürüm 1.5, 2.0'da tek kartta Harcama / Birikim / Litre fiyatı) ---------- */
+    .grafik-sekmeler { margin-bottom: 10px; }
+    .grafik-sekmeler .secim label { font-size: 13px; padding: 8px 0; }
+    .grafik-baslik { font-size: 12px; color: var(--soluk); }
+    .grafik-detay { font-size: 14px; color: var(--yazi); min-height: 40px; line-height: 1.45; margin: 2px 0 4px; }
+    .grafik-detay small { color: var(--soluk); font-size: 12px; }
+    .lejant { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--soluk); margin: 6px 0 0; }
     .lejant span { display: inline-flex; align-items: center; gap: 6px; }
-    .lejant i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .lejant .isaret { margin-right: 0; }
+    .lejant svg { width: 28px; height: 12px; overflow: visible; }
     .grafik { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
     .grafik text { font-size: 11px; fill: var(--soluk); font-family: inherit; }
-    .grafik .izgara { stroke: var(--cizgi); stroke-width: 1; }
+    .grafik .izgara { stroke: var(--cizgi); stroke-width: 1; stroke-dasharray: 3 3; }
+    .grafik .izgara.taban { stroke-dasharray: none; }
     .grafik .soluk { opacity: .35; }
     .grafik .imlec { stroke: var(--soluk); stroke-width: 1; stroke-dasharray: 3 3; }
-    .grafik-detay { font-size: 13px; color: var(--yazi); min-height: 38px; line-height: 1.45; margin-top: 4px; }
-    .grafik-detay small { color: var(--soluk); font-size: 12px; }
 
-    /* ---------- FİŞ OKUMA (Adım 6 / Sürüm 0.7) ---------- */
-    /* ---------- YEDEKLEME (Adım 7 / Sürüm 0.8) ---------- */
-    .yedek-kart { margin-top: 18px; }
-    /* Yakıt ayarları kartı (Sürüm 1.4) */
-    .ayar-baslik { font-size: 13px; color: var(--soluk); margin: 12px 0 6px; }
-    .ayar-kart .ipucu { min-height: 0; }
-    .yedek-dugmeler { margin-top: 12px; }
+    /* ---------- TAKVİM (Sürüm 2.0) ---------- */
+    .tk-ozet { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 14px; padding: 12px 14px; }
+    .tk-hucre small { display: flex; align-items: center; font-size: 11px; color: var(--soluk); }
+    .tk-hucre b { font-size: 15px; font-weight: 600; }
+    .tk { background: var(--kart); border: 1px solid var(--cizgi); border-radius: 14px; padding: 8px; }
+    .tk-izgara { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .tk-gun-adi { text-align: center; font-size: 11px; color: var(--soluk); padding: 2px 0 4px; }
+    .tk-gun {
+      height: 52px;
+      border-radius: 8px;
+      border: none;
+      background: var(--arkaplan);
+      color: var(--yazi);
+      font-family: inherit;
+      font-size: 14px;
+      padding: 7px 0 0;
+      text-align: center;
+      overflow: hidden;
+    }
+    .tk-gun small { display: block; font-size: 10px; color: var(--soluk); line-height: 1.3; margin-top: 3px; }
+    .tk-gun.bos-hucre { background: transparent; pointer-events: none; }
+    .tk-gun.bugun { font-weight: 700; color: var(--aktif); }
+    .tk-gun.secili { box-shadow: 0 0 0 1.5px var(--yazi); }
+    .gun-baslik-kart {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--arkaplan); border: 1px solid var(--cizgi); border-radius: 12px;
+      padding: 12px 14px; margin-bottom: 10px;
+    }
+    .gun-baslik-kart b { display: block; font-size: 16px; font-weight: 600; }
+    .gun-baslik-kart span { font-size: 13px; color: var(--soluk); }
+    .gun-baslik-kart em { font-style: normal; font-size: 16px; font-weight: 700; }
+    .gun-bos { text-align: center; padding: 18px 0 8px; }
+
+    /* ---------- AYARLAR SEKMESİ: küçük kutucuklar + açılır pencereler (Sürüm 2.0) ---------- */
+    .kutular { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .kutu {
+      background: var(--kart);
+      border: 1px solid var(--cizgi);
+      border-radius: 14px;
+      padding: 16px 14px;
+      text-align: left;
+      color: var(--yazi);
+      font-family: inherit;
+    }
+    .kutu svg { display: block; width: 26px; height: 26px; margin-bottom: 10px; color: var(--vurgu); }
+    .kutu b { display: block; font-size: 15px; font-weight: 600; }
+    .kutu span { display: block; font-size: 12px; color: var(--soluk); margin-top: 2px; }
+    .kutu:active { background: var(--arkaplan); }
+
+    .popup-perde {
+      position: fixed;
+      inset: 0;
+      background: var(--perde);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 40;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+    }
+    .popup-perde.acik { opacity: 1; pointer-events: auto; }
+    .popup {
+      display: none;
+      background: var(--pop);
+      border: 1px solid var(--cizgi);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 100%;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .popup.acik { display: block; }
+    .popup-ust { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .popup-ust h2 { font-size: 17px; font-weight: 600; }
+    .popup .secim { background: var(--kart); }
+    .popup .ipucu { min-height: 0; }
+    .ayar-baslik { font-size: 13px; color: var(--soluk); margin: 14px 0 6px; }
+    .ayar-baslik:first-of-type { margin-top: 0; }
+
+    /* Yedekleme penceresi: düğmeler alt alta, tam genişlikte */
+    .yedek-dugmeler { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
     .ikincil-dugme {
-      flex: 1;
+      width: 100%;
       padding: 12px;
       font-size: 15px;
       font-weight: 600;
       font-family: inherit;
-      border-radius: 12px;
+      border-radius: 10px;
       border: 1px solid var(--cizgi);
-      background: var(--arkaplan);
+      background: var(--kart);
       color: var(--yazi);
     }
+    .ikincil-dugme.birincil { background: var(--sec-bg); border-color: var(--sec-kenar); color: var(--sec-yazi); }
     .ikincil-dugme:active { opacity: .7; }
     .ikincil-dugme:disabled { opacity: .5; }
     #yedek-durum { margin: 10px 0 0; }
 
+    /* Görünüm penceresi: mod + renk teması kartları */
+    .tema-kart {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; text-align: left;
+      padding: 10px 12px; margin-bottom: 8px;
+      border-radius: 10px;
+      border: 1px solid var(--cizgi);
+      background: var(--kart);
+      color: var(--yazi);
+      font-family: inherit;
+    }
+    .tema-kart.secili { background: var(--sec-bg); border-color: var(--sec-kenar); box-shadow: 0 0 0 1px var(--sec-kenar); }
+    .tema-kart .orta { flex: 1; font-weight: 600; font-size: 15px; }
+    .tema-kart .orta small { display: block; font-weight: 400; font-size: 12px; color: var(--soluk); margin-top: 1px; }
+    .tema-kart .onay { font-size: 16px; color: var(--sec-yazi); visibility: hidden; }
+    .tema-kart.secili .onay { visibility: visible; }
+    .ornek { display: flex; gap: 3px; }
+    .ornek u { display: block; width: 14px; height: 24px; border-radius: 4px; box-shadow: 0 0 0 1px rgba(128, 128, 128, .45); }
+
+    /* ---------- FİŞ OKUMA (Adım 6 / Sürüm 0.7) ---------- */
     .fis-dugmesi {
       width: 100%;
       display: flex;
@@ -459,28 +661,41 @@
     .fis-dugmesi svg { width: 22px; height: 22px; }
     .fis-dugmesi:disabled { opacity: .5; }
     .fis-durum { font-size: 13px; color: var(--soluk); min-height: 18px; margin-bottom: 10px; line-height: 1.4; }
-    .fis-durum.uyari { color: #d97706; }
-    .fis-durum.hata { color: #dc2626; }
-    /* Fişten doldurulan kutular kısa süre yeşil parlar */
+    .fis-durum.uyari { color: var(--uyari); }
+    .fis-durum.hata { color: var(--hata); }
+    /* Fişten doldurulan kutular kısa süre parlar */
     .alan input.okundu { outline: 2px solid var(--vurgu); }
   </style>
 </head>
 <body>
-
   <!-- ===================================================
-       BÖLÜM 3: ÜST BAŞLIK
+       BÖLÜM 3: ÜST BAŞLIK (sabit durur, sürüm yazısı yok — Sürüm 2.0)
        =================================================== -->
   <header>
-    <h1 id="baslik">Özet</h1>
-    <!-- Sürüm numarası: güncellemenin telefona gelip gelmediğini anlamak için -->
-    <small id="surum"></small>
+    <h1>Yakıt Takip</h1>
   </header>
 
   <main>
     <!-- ===================================================
-         BÖLÜM 4: SAYFA — ÖZET (ana sayfa)
+         BÖLÜM 4A: SAYFA — TAKVİM (açılış sayfası, Sürüm 2.0)
+         Ayın günleri; dolum olan günün altında o günün tutarı. Güne dokununca alttan o günün kayıtları açılır.
          =================================================== -->
-    <section class="sayfa aktif" id="sayfa-ozet">
+    <section class="sayfa aktif" id="sayfa-takvim">
+      <div class="ay-secici">
+        <button type="button" id="tk-geri" aria-label="Önceki ay">‹</button>
+        <span id="tk-adi"></span>
+        <button type="button" id="tk-ileri" aria-label="Sonraki ay">›</button>
+      </div>
+      <div class="kart tk-ozet" id="tk-ozet"></div>
+      <div class="tk">
+        <div class="tk-izgara" id="tk-izgara"></div>
+      </div>
+    </section>
+
+    <!-- ===================================================
+         BÖLÜM 4B: SAYFA — ÖZET
+         =================================================== -->
+    <section class="sayfa" id="sayfa-ozet">
       <!-- Ay / Yıl görünümü (Sürüm 1.5) -->
       <div class="secim gorunum-secim" id="gorunum-secim">
         <input type="radio" name="gorunum" id="gorunum-ay" value="ay" checked><label for="gorunum-ay">Ay</label>
@@ -500,53 +715,56 @@
         <div class="kart-alt" id="ozet-tahmin-alt"></div>
       </div>
 
-      <!-- Yıl özeti: sadece yıl görünümünde (Sürüm 1.5) -->
+      <!-- Dört kutu (Sürüm 2.0): toplam, dolum, km başı maliyet, 100 km'de tüketim (km'nin girildiği yakıt) -->
+      <div class="kutu-izgara">
+        <div class="ozet-kutu">
+          <h2>Toplam</h2>
+          <div class="deger" id="ozet-toplam">— ₺</div>
+          <div class="karsilastirma" id="ozet-toplam-fark"></div>
+        </div>
+        <div class="ozet-kutu">
+          <h2>Dolum</h2>
+          <div class="deger" id="ozet-dolum">—</div>
+          <div class="kart-alt" id="ozet-dolum-alt"></div>
+        </div>
+        <div class="ozet-kutu">
+          <h2>Km başı</h2>
+          <div class="deger" id="ozet-km">— ₺/km</div>
+          <div class="kart-alt" id="ozet-km-alt"></div>
+          <div class="karsilastirma" id="ozet-km-fark"></div>
+        </div>
+        <div class="ozet-kutu">
+          <h2>100 km'de</h2>
+          <div class="deger" id="ozet-tuketim">—</div>
+          <div class="kart-alt" id="ozet-tuketim-alt"></div>
+        </div>
+      </div>
+
+      <!-- Yıl ayrıntısı: sadece yıl görünümünde -->
       <div class="kart" id="kart-yil" hidden>
-        <h2>Yıl toplamı</h2>
-        <div class="deger" id="ozet-yil">— ₺</div>
-        <div class="kart-alt" id="ozet-yil-alt"></div>
-        <div class="karsilastirma" id="ozet-yil-fark"></div>
+        <h2>Yıl ayrıntısı</h2>
+        <div class="kart-alt" id="ozet-yil-alt" style="margin-top:0"></div>
       </div>
 
-      <!-- Yakıt kartları: ayarlarda seçili yakıtlar ve o ay kaydı olan yakıtlar görünür (Sürüm 1.4) -->
-      <div class="kart" id="kart-LPG">
-        <h2>LPG</h2>
-        <div class="deger lpg-renk" id="ozet-LPG">— ₺</div>
-        <div class="kart-alt" id="ozet-LPG-alt"></div>
-        <div class="karsilastirma" id="ozet-LPG-fark"></div>
-      </div>
-      <div class="kart" id="kart-BENZIN">
-        <h2>Benzin</h2>
-        <div class="deger benzin-renk" id="ozet-BENZIN">— ₺</div>
-        <div class="kart-alt" id="ozet-BENZIN-alt"></div>
-        <div class="karsilastirma" id="ozet-BENZIN-fark"></div>
-      </div>
-      <div class="kart" id="kart-DIZEL">
-        <h2>Dizel</h2>
-        <div class="deger dizel-renk" id="ozet-DIZEL">— ₺</div>
-        <div class="kart-alt" id="ozet-DIZEL-alt"></div>
-        <div class="karsilastirma" id="ozet-DIZEL-fark"></div>
-      </div>
-      <div class="kart">
-        <h2>Km başı toplam maliyet</h2>
-        <div class="deger vurgu-renk" id="ozet-km">— ₺/km</div>
-        <div class="kart-alt" id="ozet-km-alt"></div>
-        <div class="karsilastirma" id="ozet-km-fark"></div>
+      <!-- Yakıta göre: tek çubukta pay oranı, altında her yakıtın satırı -->
+      <div class="kart" id="kart-yakit">
+        <h2>Yakıta göre</h2>
+        <div class="pay-cubuk" id="pay-cubuk"></div>
+        <div id="yakit-satirlari"></div>
       </div>
 
-      <!-- Grafikler (Sürüm 1.5, 1.5.1): ay görünümünde sadece o ayın dolumları (yatay eksen: günler),
-           yıl görünümünde o yılın 12 ayı. Bir çubuğa dokununca altında rakamları yazar. -->
-      <div class="kart grafik-kart" id="kart-harcama-grafik">
-        <h2 id="harcama-grafik-baslik">Aylık harcama</h2>
-        <div class="lejant" id="harcama-lejant"></div>
-        <svg class="grafik" id="harcama-grafik" role="img" aria-label="Aylık yakıt harcaması grafiği"></svg>
-        <div class="grafik-detay" id="harcama-detay"></div>
-      </div>
-      <div class="kart grafik-kart" id="kart-fiyat-grafik">
-        <h2 id="fiyat-grafik-baslik">Litre fiyatı (₺/L)</h2>
-        <div class="lejant" id="fiyat-lejant"></div>
-        <svg class="grafik" id="fiyat-grafik" role="img" aria-label="Aylık ortalama litre fiyatı grafiği"></svg>
-        <div class="grafik-detay" id="fiyat-detay"></div>
+      <!-- Grafikler (Sürüm 2.0): tek kart, üç sekme. Ay görünümünde sadece o ayın günleri, yıl görünümünde 12 ay.
+           Bir güne/aya dokununca rakamları grafiğin üstünde yazar. -->
+      <div class="kart grafik-kart" id="kart-grafik">
+        <div class="secim grafik-sekmeler" id="grafik-sekmeler">
+          <input type="radio" name="gsekme" id="gs-harcama" value="harcama" checked><label for="gs-harcama">Harcama</label>
+          <input type="radio" name="gsekme" id="gs-birikim" value="birikim"><label for="gs-birikim">Birikim</label>
+          <input type="radio" name="gsekme" id="gs-fiyat" value="fiyat"><label for="gs-fiyat">Litre fiyatı</label>
+        </div>
+        <div class="grafik-baslik" id="grafik-baslik"></div>
+        <div class="grafik-detay" id="grafik-detay"></div>
+        <svg class="grafik" id="grafik" role="img" aria-label="Yakıt grafiği"></svg>
+        <div class="lejant" id="grafik-lejant"></div>
       </div>
     </section>
 
@@ -556,45 +774,105 @@
     <section class="sayfa" id="sayfa-kayitlar">
       <!-- Liste JavaScript ile doldurulur (listeGuncelle). Aylara göre gruplu, yeniden eskiye. -->
       <div id="kayit-listesi"></div>
+    </section>
 
-      <!-- Yakıt ayarları (Sürüm 1.4): hangi yakıtlar kullanılıyor, km hangi yakıtın dolumunda giriliyor -->
-      <div class="kart yedek-kart ayar-kart">
-        <h2>Yakıt ayarları</h2>
-        <div class="ayar-baslik">Kullandığım yakıtlar</div>
-        <div class="secim" id="ayar-yakitlar">
-          <input type="checkbox" id="ayar-LPG" value="LPG"><label for="ayar-LPG">LPG</label>
-          <input type="checkbox" id="ayar-BENZIN" value="BENZIN"><label for="ayar-BENZIN">Benzin</label>
-          <input type="checkbox" id="ayar-DIZEL" value="DIZEL"><label for="ayar-DIZEL">Dizel</label>
-        </div>
-        <div id="ana-yakit-blok">
-          <div class="ayar-baslik">Km'yi hangi yakıtın dolumunda giriyorum?</div>
-          <div class="secim" id="ayar-ana">
-            <input type="radio" name="ana-yakit" id="ana-LPG" value="LPG"><label for="ana-LPG">LPG</label>
-            <input type="radio" name="ana-yakit" id="ana-BENZIN" value="BENZIN"><label for="ana-BENZIN">Benzin</label>
-            <input type="radio" name="ana-yakit" id="ana-DIZEL" value="DIZEL"><label for="ana-DIZEL">Dizel</label>
-          </div>
-        </div>
-        <div class="ipucu" id="ayar-ipucu"></div>
-      </div>
-
-      <!-- Yedekleme (Adım 7 / Sürüm 0.8) -->
-      <div class="kart yedek-kart">
-        <h2>Yedekleme</h2>
-        <p class="bilgi" id="yedek-bilgi"></p>
-        <div class="yan-yana yedek-dugmeler">
-          <button type="button" class="ikincil-dugme" id="yedek-al">Yedek al</button>
-          <button type="button" class="ikincil-dugme" id="yedek-yukle">Geri yükle</button>
-        </div>
-        <!-- Excel'e aktarma (Sürüm 1.5): CSV dosyası, Türkçe Excel ayarlarıyla doğrudan açılır -->
-        <div class="yan-yana yedek-dugmeler">
-          <button type="button" class="ikincil-dugme" id="csv-aktar">Excel'e aktar (CSV)</button>
-        </div>
-        <input type="file" id="yedek-dosya" accept=".json,application/json" hidden>
-        <div class="fis-durum" id="yedek-durum"></div>
+    <!-- ===================================================
+         BÖLÜM 6B: SAYFA — AYARLAR (Sürüm 2.0)
+         Küçük kutucuklar; dokununca açılır pencere (popup) açılır.
+         =================================================== -->
+    <section class="sayfa" id="sayfa-ayarlar">
+      <div class="kutular">
+        <button type="button" class="kutu" data-popup="yakit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M4 20h11"/><path d="M7 8h5"/><path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg>
+          <b>Yakıt ayarları</b><span id="kutu-yakit-alt"></span>
+        </button>
+        <button type="button" class="kutu" data-popup="yedek">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>
+          <b>Yedekleme</b><span id="kutu-yedek-alt"></span>
+        </button>
+        <button type="button" class="kutu" data-popup="gorunum">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 0 1 0-18c4.97 0 9 3.58 9 8 0 1.06-.47 2.08-1.32 2.83-.84.75-1.99 1.17-3.18 1.17h-2.5a2 2 0 0 0-1 3.75 1.3 1.3 0 0 1-1 2.25"/><path d="M8.5 10.5v.01M12 7.5v.01M15.5 10.5v.01"/></svg>
+          <b>Görünüm</b><span id="kutu-gorunum-alt"></span>
+        </button>
       </div>
     </section>
   </main>
 
+  <!-- ===================================================
+       AÇILIR PENCERELER (Sürüm 2.0): Yakıt ayarları, Yedekleme, Görünüm
+       Sağ üstteki ✕'e ya da pencerenin dışına dokununca kapanır.
+       =================================================== -->
+  <div class="popup-perde" id="popup-perde">
+
+    <!-- Yakıt ayarları (Sürüm 1.4): hangi yakıtlar kullanılıyor, km hangi yakıtın dolumunda giriliyor -->
+    <div class="popup" id="popup-yakit" role="dialog" aria-modal="true" aria-label="Yakıt ayarları">
+      <div class="popup-ust"><h2>Yakıt ayarları</h2><button type="button" class="kapat" data-kapat aria-label="Kapat">✕</button></div>
+      <div class="ayar-baslik" style="margin-top:0">Kullandığım yakıtlar</div>
+      <div class="secim" id="ayar-yakitlar">
+        <input type="checkbox" id="ayar-LPG" value="LPG"><label for="ayar-LPG"><i class="isaret is-LPG"></i>LPG</label>
+        <input type="checkbox" id="ayar-BENZIN" value="BENZIN"><label for="ayar-BENZIN"><i class="isaret is-BENZIN"></i>Benzin</label>
+        <input type="checkbox" id="ayar-DIZEL" value="DIZEL"><label for="ayar-DIZEL"><i class="isaret is-DIZEL"></i>Dizel</label>
+      </div>
+      <div id="ana-yakit-blok">
+        <div class="ayar-baslik">Km'yi hangi yakıtın dolumunda giriyorum?</div>
+        <div class="secim" id="ayar-ana">
+          <input type="radio" name="ana-yakit" id="ana-LPG" value="LPG"><label for="ana-LPG"><i class="isaret is-LPG"></i>LPG</label>
+          <input type="radio" name="ana-yakit" id="ana-BENZIN" value="BENZIN"><label for="ana-BENZIN"><i class="isaret is-BENZIN"></i>Benzin</label>
+          <input type="radio" name="ana-yakit" id="ana-DIZEL" value="DIZEL"><label for="ana-DIZEL"><i class="isaret is-DIZEL"></i>Dizel</label>
+        </div>
+      </div>
+      <div class="ipucu" id="ayar-ipucu"></div>
+    </div>
+
+    <!-- Yedekleme (Adım 7 / Sürüm 0.8). Excel'e aktarma (Sürüm 1.5): CSV dosyası, Türkçe Excel ayarlarıyla doğrudan açılır -->
+    <div class="popup" id="popup-yedek" role="dialog" aria-modal="true" aria-label="Yedekleme">
+      <div class="popup-ust"><h2>Yedekleme</h2><button type="button" class="kapat" data-kapat aria-label="Kapat">✕</button></div>
+      <p class="bilgi" id="yedek-bilgi"></p>
+      <div class="yedek-dugmeler">
+        <button type="button" class="ikincil-dugme birincil" id="yedek-al">Yedek al</button>
+        <button type="button" class="ikincil-dugme" id="yedek-yukle">Geri yükle</button>
+        <button type="button" class="ikincil-dugme" id="csv-aktar">Excel'e aktar (CSV)</button>
+      </div>
+      <input type="file" id="yedek-dosya" accept=".json,application/json" hidden>
+      <div class="fis-durum" id="yedek-durum"></div>
+    </div>
+
+    <!-- Görünüm (Sürüm 2.0): Açık / Koyu (biri hep seçili) + renk teması (Yonca ya da Grafit) -->
+    <div class="popup" id="popup-gorunum" role="dialog" aria-modal="true" aria-label="Görünüm">
+      <div class="popup-ust"><h2>Görünüm</h2><button type="button" class="kapat" data-kapat aria-label="Kapat">✕</button></div>
+      <div class="ayar-baslik" style="margin-top:0">Mod</div>
+      <div class="secim" id="mod-secim">
+        <input type="radio" name="mod" id="mod-acik" value="acik"><label for="mod-acik">Açık</label>
+        <input type="radio" name="mod" id="mod-koyu" value="koyu"><label for="mod-koyu">Koyu</label>
+      </div>
+      <div class="ayar-baslik">Renk teması</div>
+      <button type="button" class="tema-kart" data-tema-sec="yonca">
+        <span class="ornek" data-ornek="yonca"></span>
+        <span class="orta">Yonca<small>Yeşil vurgu, renkli yakıtlar</small></span>
+        <span class="onay">✓</span>
+      </button>
+      <button type="button" class="tema-kart" data-tema-sec="grafit">
+        <span class="ornek" data-ornek="grafit"></span>
+        <span class="orta">Grafit<small>Gri vurgu, gri tonlu yakıtlar</small></span>
+        <span class="onay">✓</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================================================
+       GÜN PANELİ (Sürüm 2.0): takvimde bir güne dokununca alttan açılır
+       =================================================== -->
+  <div class="perde" id="gun-perde"></div>
+  <div class="panel" id="gun-paneli" role="dialog" aria-modal="true" aria-label="Günün kayıtları">
+    <div class="panel-ust" style="justify-content:flex-end">
+      <button type="button" class="kapat" id="gun-kapat" aria-label="Kapat">✕</button>
+    </div>
+    <div class="gun-baslik-kart">
+      <div><b id="gun-tarih"></b><span id="gun-haftagunu"></span></div>
+      <em id="gun-toplam"></em>
+    </div>
+    <div id="gun-liste"></div>
+  </div>
   <!-- ===================================================
        BÖLÜM 5: AÇILIR PANEL — YENİ KAYIT
        Alttaki "Ekle" düğmesine basınca alttan kayarak açılır
@@ -622,11 +900,11 @@
         <div class="alan" id="tur-blok">
           <div class="secim">
             <input type="radio" name="tur" id="tur-LPG" value="LPG" checked>
-            <label for="tur-LPG">LPG</label>
+            <label for="tur-LPG"><i class="isaret is-LPG"></i>LPG</label>
             <input type="radio" name="tur" id="tur-BENZIN" value="BENZIN">
-            <label for="tur-BENZIN">Benzin</label>
+            <label for="tur-BENZIN"><i class="isaret is-BENZIN"></i>Benzin</label>
             <input type="radio" name="tur" id="tur-DIZEL" value="DIZEL">
-            <label for="tur-DIZEL">Dizel</label>
+            <label for="tur-DIZEL"><i class="isaret is-DIZEL"></i>Dizel</label>
           </div>
         </div>
 
@@ -680,17 +958,22 @@
         <button type="button" class="sil-dugmesi" id="sil-dugmesi" hidden>Kaydı sil</button>
       </form>
   </div>
-
   <!-- ===================================================
-       BÖLÜM 7: ALT SEKME ÇUBUĞU
+       BÖLÜM 7: ALT SEKME ÇUBUĞU (Sürüm 2.0: Takvim, Özet, Kayıtlar, Ayarlar)
        data-sayfa = açılacak sayfanın id'sinin sonu
        =================================================== -->
   <nav>
-    <button class="aktif" data-sayfa="ozet" data-baslik="Özet">
-      <span class="ikon">📊</span>Özet
+    <button class="aktif" data-sayfa="takvim">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg>Takvim
     </button>
-    <button data-sayfa="kayitlar" data-baslik="Kayıtlar">
-      <span class="ikon">📋</span>Kayıtlar
+    <button data-sayfa="ozet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><rect x="6" y="11" width="3" height="9" rx="1"/><rect x="10.5" y="5" width="3" height="15" rx="1"/><rect x="15" y="9" width="3" height="11" rx="1"/></svg>Özet
+    </button>
+    <button data-sayfa="kayitlar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M5 6h.01M5 12h.01M5 18h.01"/></svg>Kayıtlar
+    </button>
+    <button data-sayfa="ayarlar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h8M16 6h4M4 12h2M10 12h10M4 18h10M18 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></svg>Ayarlar
     </button>
   </nav>
 
@@ -706,30 +989,29 @@
        =================================================== -->
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
-    const SURUM = "1.6";
-    document.getElementById("surum").textContent = "Sürüm " + SURUM;
+    // (Sürüm 2.0'dan beri ekranda gösterilmez; sadece yedek dosyasına yazılır.)
+    const SURUM = "2.0";
 
     // --- Sekme geçişi ---
     // Alttaki bir butona basılınca ilgili sayfayı gösterir, diğerlerini gizler
-    function sayfaAc(ad, baslik) {
+    function sayfaAc(ad) {
       document.querySelectorAll(".sayfa").forEach(s => s.classList.remove("aktif"));
       document.getElementById("sayfa-" + ad).classList.add("aktif");
 
       document.querySelectorAll("nav button").forEach(b => {
         b.classList.toggle("aktif", b.dataset.sayfa === ad);
       });
+      document.body.classList.toggle("ayarlar-acik", ad === "ayarlar");   // Ayarlar'da + düğmesi gizlenir
 
-      document.getElementById("baslik").textContent = baslik;
       window.scrollTo(0, 0);
       // Gizliyken çizilen grafiklerin genişliği yanlış olur: Özet açılınca yeniden çiz (Sürüm 1.5)
       if (ad === "ozet") ozetGuncelle();
+      if (ad === "takvim") takvimGuncelle();
     }
 
-    // Sadece sayfa açan düğmeler (Özet, Kayıtlar). "Ekle" paneli ayrıca açılır.
+    // Sayfa açan düğmeler (Takvim, Özet, Kayıtlar, Ayarlar). "Ekle" paneli ayrıca açılır.
     document.querySelectorAll("nav button[data-sayfa]").forEach(buton => {
-      buton.addEventListener("click", () => {
-        sayfaAc(buton.dataset.sayfa, buton.dataset.baslik);
-      });
+      buton.addEventListener("click", () => sayfaAc(buton.dataset.sayfa));
     });
 
     // =====================================================
@@ -1151,6 +1433,33 @@
       kayitlariYaz(kayitlar);
     }
 
+    // Bir dolum satırının HTML'i (Kayıtlar listesi ve takvimdeki gün paneli ortak kullanır) — Sürüm 2.0
+    // ayAdiyla: satırda "24 Ekim" gibi gün de yazsın (listede evet, gün panelinde hayır)
+    function kayitSatiriHtml(k, ayAdiyla) {
+      const kod = YAKIT_KODLARI.includes(k.tur) ? k.tur : "LPG";
+      const fiyat = k.fiyat || (k.litre ? k.tutar / k.litre : 0);
+      const km = gidilenKmBul(k);   // km sadece ana yakıt kayıtlarında olur
+      const gun = +k.tarih.slice(8, 10), ayNo = +k.tarih.slice(5, 7);
+      const sol = [];
+      if (ayAdiyla) sol.push(gun + " " + AY_ADLARI[ayNo - 1]);
+      if (k.saat) sol.push(guvenli(k.saat));
+      if (k.istasyon) sol.push(guvenli(k.istasyon));
+      return '<button type="button" class="satir" data-id="' + guvenli(k.id) + '">' +
+        '<i class="isaret buyuk is-' + kod + '"></i>' +
+        '<span class="satir-orta">' +
+          '<div class="satir-ust">' + yakitAdi(kod) + "</div>" +
+          '<div class="satir-alt">' + (sol.join(" · ") || "&nbsp;") + "</div>" +
+        "</span>" +
+        '<span class="satir-sag">' +
+          '<div class="satir-tutar">' + tlBicim.format(k.tutar) + " ₺</div>" +
+          '<div class="satir-km">' + tlBicim.format(k.litre) + " L · " + tlBicim.format(fiyat) + " ₺/L</div>" +
+        "</span>" +
+        (km != null
+          ? '<div class="satir-ek">' + kmYazisi(km) + " km · " + tuketimBicim.format(k.litre / km * 100) + " L/100 km</div>"
+          : "") +
+        "</button>";
+    }
+
     function listeGuncelle() {
       const kutu = el("kayit-listesi");
       const sirali = siraliKayitlar();
@@ -1173,42 +1482,205 @@
       Object.keys(aylar).forEach(ay => {
         const kayitlar = aylar[ay];
         const [yil, ayNo] = ay.split("-");
-        // Ay başlığında o ay kaydı olan her yakıtın toplamı (Sürüm 1.4)
-        const toplamlar = YAKIT_KODLARI
+        // Ay başlığında o ayın toplamı, altında o ay kaydı olan her yakıtın toplamı (Sürüm 1.4, 2.0)
+        const dagilim = YAKIT_KODLARI
           .map(kod => [kod, kayitlar.filter(k => k.tur === kod)])
           .filter(([, liste]) => liste.length)
-          .map(([kod, liste]) => yakitAdi(kod) + " " + tlBicim.format(liste.reduce((t, k) => t + k.tutar, 0)) + " ₺");
+          .map(([kod, liste]) => '<span><i class="isaret is-' + kod + '"></i>' + yakitAdi(kod) + " " +
+            tlBicim.format(topla(liste, "tutar")) + " ₺</span>");
 
         html += '<div class="ay-baslik"><span>' + AY_ADLARI[+ayNo - 1] + " " + yil + "</span><small>" +
-          toplamlar.join(" · ") + "</small></div>";
-
-        html += '<div class="liste-kart">';
-        kayitlar.forEach(k => {
-          const gun = +k.tarih.slice(8, 10);
-          const fiyat = k.fiyat || (k.litre ? k.tutar / k.litre : 0);
-          const km = gidilenKmBul(k);   // km sadece ana yakıt kayıtlarında olur
-          const tur = YAKIT_KODLARI.includes(k.tur) ? k.tur : "LPG";
-          const altSatir = [tlBicim.format(k.litre) + " L", tlBicim.format(fiyat) + " ₺/L"];
-          if (k.istasyon) altSatir.push(guvenli(k.istasyon));
-
-          html +=
-            '<button type="button" class="satir" data-id="' + guvenli(k.id) + '">' +
-              '<span class="rozet ' + tur + '">' + yakitRozeti(tur) + "</span>" +
-              '<span class="satir-orta">' +
-                '<div class="satir-ust">' + gun + " " + AY_ADLARI[+ayNo - 1] + (k.saat ? " · " + guvenli(k.saat) : "") + "</div>" +
-                '<div class="satir-alt">' + altSatir.join(" · ") + "</div>" +
-              "</span>" +
-              '<span class="satir-sag">' +
-                '<div class="satir-tutar">' + tlBicim.format(k.tutar) + " ₺</div>" +
-                '<div class="satir-km">' + (km != null ? kmYazisi(km) + " km · " +
-                  tuketimBicim.format(k.litre / km * 100) + " L/100" : "") + "</div>" +
-              "</span>" +
-            "</button>";
-        });
-        html += "</div>";
+          tlBicim.format(topla(kayitlar, "tutar")) + " ₺</small></div>";
+        html += '<div class="ay-alt">' + dagilim.join("") + "</div>";
+        html += '<div class="liste-kart">' + kayitlar.map(k => kayitSatiriHtml(k, true)).join("") + "</div>";
       });
       kutu.innerHTML = html;
     }
+
+    // =====================================================
+    // TAKVİM (Sürüm 2.0)
+    // Seçili ayın günleri (Pazartesi ilk sütun). Dolum olan günün altında o günün tutarı yazar.
+    // Güne dokununca alttan o günün kayıtları açılır; bir kayda dokununca düzenleme paneli açılır.
+    // =====================================================
+    const HAFTA_GUNLERI = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+    const HAFTA_GUNU_ADLARI = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+    const tamBicim = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
+    let takvimAy = buAy();       // "2026-10"
+    let takvimSecili = null;     // gün paneli açıkken seçili günün tarihi
+
+    function bugunYazisi() {
+      return buAy() + "-" + ikiHane(new Date().getDate());
+    }
+
+    function takvimGuncelle() {
+      const sirali = siraliKayitlar();
+      const ay = takvimAy;
+      const [y, a] = ay.split("-").map(Number);
+      const gunSayisi = new Date(y, a, 0).getDate();
+      const bosBaslangic = (new Date(y, a - 1, 1).getDay() + 6) % 7;   // Pazartesi = 0
+      const ayKayitlari = sirali.filter(k => k.tarih.startsWith(ay));
+      const enEskiAy = sirali.length ? sirali[0].tarih.slice(0, 7) : buAy();
+
+      // Ay başlığı ve ok düğmeleri (ileri en fazla bu ay, geri en eski kaydın ayına kadar)
+      el("tk-adi").textContent = ayYazisi(ay);
+      el("tk-ileri").disabled = ay >= buAy();
+      el("tk-geri").disabled = ay <= enEskiAy;
+
+      // Üstteki şerit: ayın toplamı + yakıtlara göre (ayarlarda seçili ya da o ay kaydı olan yakıtlar)
+      const ayar = ayarlariOku();
+      let ozet = '<div class="tk-hucre"><small>Toplam</small><b>' + tlBicim.format(topla(ayKayitlari, "tutar")) + " ₺</b></div>";
+      YAKIT_KODLARI.forEach(kod => {
+        const liste = ayKayitlari.filter(k => k.tur === kod);
+        if (!liste.length && !ayar.yakitlar.includes(kod)) return;
+        ozet += '<div class="tk-hucre"><small><i class="isaret is-' + kod + '"></i>' + yakitAdi(kod) + "</small><b>" +
+          tamBicim.format(topla(liste, "tutar")) + " ₺</b></div>";
+      });
+      el("tk-ozet").innerHTML = ozet;
+
+      // Günler
+      const gunToplam = {};
+      ayKayitlari.forEach(k => { gunToplam[k.tarih] = (gunToplam[k.tarih] || 0) + k.tutar; });
+      const bugun = bugunYazisi();
+      let izgara = HAFTA_GUNLERI.map(x => '<div class="tk-gun-adi">' + x + "</div>").join("");
+      for (let i = 0; i < bosBaslangic; i++) izgara += '<div class="tk-gun bos-hucre"></div>';
+      for (let d = 1; d <= gunSayisi; d++) {
+        const t = ay + "-" + ikiHane(d);
+        izgara += '<button type="button" class="tk-gun' + (t === bugun ? " bugun" : "") + (t === takvimSecili ? " secili" : "") +
+          '" data-gun="' + t + '">' + d + "<small>" + (gunToplam[t] ? tamBicim.format(gunToplam[t]) : "&nbsp;") + "</small></button>";
+      }
+      el("tk-izgara").innerHTML = izgara;
+    }
+
+    el("tk-geri").addEventListener("click", () => { takvimAy = ayKaydir(takvimAy, -1); takvimGuncelle(); });
+    el("tk-ileri").addEventListener("click", () => {
+      takvimAy = ayKaydir(takvimAy, +1);
+      if (takvimAy > buAy()) takvimAy = buAy();
+      takvimGuncelle();
+    });
+    el("tk-izgara").addEventListener("click", olay => {
+      const dugme = olay.target.closest("[data-gun]");
+      if (dugme) gunPaneliAc(dugme.dataset.gun);
+    });
+
+    // Gün paneli: seçilen günün tarihi, toplamı ve dolumları
+    function gunPaneliAc(t) {
+      takvimSecili = t;
+      const kayitlar = siraliKayitlar().filter(k => k.tarih === t);
+      const d = new Date(+t.slice(0, 4), +t.slice(5, 7) - 1, +t.slice(8, 10));
+      el("gun-tarih").textContent = d.getDate() + " " + AY_ADLARI[d.getMonth()] + " " + d.getFullYear();
+      el("gun-haftagunu").textContent = HAFTA_GUNU_ADLARI[d.getDay()];
+      el("gun-toplam").textContent = kayitlar.length ? tlBicim.format(topla(kayitlar, "tutar")) + " ₺" : "";
+      el("gun-liste").innerHTML = kayitlar.length
+        ? '<div class="liste-kart">' + kayitlar.map(k => kayitSatiriHtml(k, false)).join("") + "</div>"
+        : '<p class="bilgi gun-bos">Bu günde dolum yok.</p>';
+      takvimGuncelle();   // seçili günün çerçevesi görünsün
+      el("gun-paneli").scrollTop = 0;
+      el("gun-paneli").classList.add("acik");
+      el("gun-perde").classList.add("acik");
+      document.body.classList.add("panel-acik");
+    }
+    function gunPaneliKapat() {
+      el("gun-paneli").classList.remove("acik");
+      el("gun-perde").classList.remove("acik");
+      document.body.classList.remove("panel-acik");
+      takvimSecili = null;
+      takvimGuncelle();
+    }
+    el("gun-kapat").addEventListener("click", gunPaneliKapat);
+    el("gun-perde").addEventListener("click", gunPaneliKapat);   // boş yere dokununca kapanır
+    // Gün panelindeki bir kayda dokununca panel kapanır, o kayıt düzenleme modunda açılır
+    el("gun-liste").addEventListener("click", olay => {
+      const satir = olay.target.closest(".satir");
+      if (!satir) return;
+      const kayit = kayitlariOku().find(k => k.id === satir.dataset.id);
+      if (!kayit) return;
+      gunPaneliKapat();
+      paneliAc(kayit);
+    });
+
+    // =====================================================
+    // AYARLAR SEKMESİ: kutucuklar ve açılır pencereler (Sürüm 2.0)
+    // =====================================================
+    function popupAc(ad) {
+      document.querySelectorAll(".popup").forEach(p => p.classList.toggle("acik", p.id === "popup-" + ad));
+      el("popup-perde").classList.add("acik");
+      document.body.classList.add("panel-acik");
+    }
+    function popupKapat() {
+      el("popup-perde").classList.remove("acik");
+      document.body.classList.remove("panel-acik");
+      document.activeElement && document.activeElement.blur();
+    }
+    document.querySelectorAll(".kutu[data-popup]").forEach(k => {
+      k.addEventListener("click", () => popupAc(k.dataset.popup));
+    });
+    document.querySelectorAll("[data-kapat]").forEach(k => k.addEventListener("click", popupKapat));
+    // Pencerenin dışına (karartmaya) dokununca kapanır
+    el("popup-perde").addEventListener("click", olay => {
+      if (olay.target === el("popup-perde")) popupKapat();
+    });
+
+    // Kutucukların altındaki kısa bilgiler
+    function ayarKutulariniGoster() {
+      el("kutu-yakit-alt").textContent = ayarlariOku().yakitlar.map(yakitAdi).join(", ");
+      el("kutu-yedek-alt").textContent = kayitlariOku().length + " kayıt";
+      const g = gorunumAyariOku();
+      el("kutu-gorunum-alt").textContent = (g.mod === "koyu" ? "Koyu" : "Açık") + " · " + (g.tema === "grafit" ? "Grafit" : "Yonca");
+    }
+
+    // -----------------------------------------------------
+    // GÖRÜNÜM: Açık / Koyu (biri hep seçili) + renk teması (Yonca / Grafit)
+    // Telefonda "gorunumAyar_v1" anahtarında saklanır. İlk açılışta mod telefonun ayarından alınır.
+    // Sayfa açılırken titreme olmasın diye aynı değerler <head> içindeki küçük betikle de uygulanır.
+    // -----------------------------------------------------
+    const GORUNUM_ANAHTARI = "gorunumAyar_v1";
+    // Tema kartlarındaki örnek renkler: LPG, Benzin, Dizel, vurgu
+    const TEMA_ORNEKLERI = {
+      "grafit-acik": ["#374151", "#8a93a3", "#c3c8d1", "#374151"],
+      "grafit-koyu": ["#e2e8f0", "#8f99a8", "#566070", "#cbd5e1"],
+      "yonca-acik":  ["#2563eb", "#ea580c", "#7c3aed", "#059669"],
+      "yonca-koyu":  ["#3b82f6", "#dd5f12", "#8b5cf6", "#34d399"]
+    };
+
+    function gorunumKayitliMi() {
+      try { return localStorage.getItem(GORUNUM_ANAHTARI) != null; } catch (e) { return false; }
+    }
+    function gorunumAyariOku() {
+      let a = null;
+      try { a = JSON.parse(localStorage.getItem(GORUNUM_ANAHTARI)); } catch (e) {}
+      const sistemAcik = !!(window.matchMedia && !matchMedia("(prefers-color-scheme: dark)").matches);
+      return {
+        mod: a && (a.mod === "acik" || a.mod === "koyu") ? a.mod : (sistemAcik ? "acik" : "koyu"),
+        tema: a && (a.tema === "yonca" || a.tema === "grafit") ? a.tema : "grafit"
+      };
+    }
+    function gorunumYaz(g) {
+      try { localStorage.setItem(GORUNUM_ANAHTARI, JSON.stringify(g)); } catch (e) {}
+    }
+    function gorunumUygula(g) {
+      const h = document.documentElement;
+      h.dataset.mod = g.mod;
+      h.dataset.tema = g.tema;
+      el("mod-" + g.mod).checked = true;
+      document.querySelectorAll("[data-tema-sec]").forEach(b => b.classList.toggle("secili", b.dataset.temaSec === g.tema));
+      document.querySelectorAll("[data-ornek]").forEach(e => {
+        e.innerHTML = TEMA_ORNEKLERI[e.dataset.ornek + "-" + g.mod]
+          .map(renk => '<u style="background:' + renk + '"></u>').join("");
+      });
+      // Durum çubuğunun rengi üst çubukla aynı olsun
+      const meta = el("tema-rengi");
+      if (meta) meta.content = getComputedStyle(h).getPropertyValue("--cubuk").trim() || meta.content;
+    }
+    function gorunumDegistir(parca) {
+      const g = { ...gorunumAyariOku(), ...parca };
+      gorunumYaz(g);
+      gorunumUygula(g);
+      ayarKutulariniGoster();
+    }
+    el("mod-secim").addEventListener("change", () => gorunumDegistir({ mod: el("mod-koyu").checked ? "koyu" : "acik" }));
+    document.querySelectorAll("[data-tema-sec]").forEach(b => {
+      b.addEventListener("click", () => gorunumDegistir({ tema: b.dataset.temaSec }));
+    });
 
     // Listedeki bir satıra dokununca o kayıt düzenleme modunda açılır
     el("kayit-listesi").addEventListener("click", olay => {
@@ -1219,11 +1691,7 @@
     });
 
     // Kayıtlar değişince listeyi ve özeti birlikte yenile
-    function hepsiniGuncelle() {
-      listeGuncelle();
-      ozetGuncelle();
-      yedekBilgisiGoster();
-    }
+    function hepsiniGuncelle() { listeGuncelle(); takvimGuncelle(); ozetGuncelle(); yedekBilgisiGoster(); ayarKutulariniGoster(); }
 
     // =====================================================
     // YEDEKLEME (Adım 7 / Sürüm 0.8)
@@ -1457,7 +1925,7 @@
       ayarlariYaz({ yakitlar, anaYakit });
       ayarKartiGoster();
       formuSifirla();          // kayıt formu yeni ayarlara göre
-      ozetGuncelle();
+      hepsiniGuncelle();
       bildirimGoster("✓ Ayar kaydedildi");
     }
     el("ayar-yakitlar").addEventListener("change", ayarDegisti);
@@ -1557,69 +2025,65 @@
         el("ay-geri").disabled = seciliAy.slice(0, 4) <= enEskiAy.slice(0, 4);
       }
 
-      // Bir yakıt türünün kartını doldurur
-      function kartDoldur(liste, kod) {
-        const tutar = topla(liste, "tutar");
-        const litre = topla(liste, "litre");
-        el("ozet-" + kod).textContent = liste.length ? tlBicim.format(tutar) + " ₺" : "— ₺";
-        let alt = liste.length
-          ? liste.length + " dolum · " + tlBicim.format(litre) + " L · ort. " + tlBicim.format(tutar / litre) + " ₺/L"
-          : bosYazi;
-        const tuketim = yuzKmTuketim(liste, kod);
-        if (tuketim != null) alt += "\nOrtalama tüketim: " + tuketimBicim.format(tuketim) + " L/100 km";
-        el("ozet-" + kod + "-alt").textContent = alt;
-        const onceki = topla(oncekiKayitlar.filter(k => k.tur === kod), "tutar");
-        el("ozet-" + kod + "-fark").innerHTML = farkYazisi(tutar, onceki, d);
-      }
-      // Her yakıtın kartı: ayarlarda seçiliyse ya da bu dönemde kaydı varsa görünür
-      const donemYakitlari = [];   // bu dönemde kaydı olan yakıtlar (km kartındaki açıklama için)
-      YAKIT_KODLARI.forEach(kod => {
-        const liste = donemKayitlari.filter(k => k.tur === kod);
-        if (liste.length) donemYakitlari.push(yakitAdi(kod));
-        el("kart-" + kod).hidden = !ayar.yakitlar.includes(kod) && !liste.length;
-        kartDoldur(liste, kod);
-      });
-
-      // Km başı maliyet
+      const sayi = donemKayitlari.length;
       const toplamTutar = topla(donemKayitlari, "tutar");
       const toplamKm = kmTopla(donemKayitlari);
+
+      // --- Dört kutu (Sürüm 2.0) ---
+      // Toplam
+      el("ozet-toplam").textContent = sayi ? tlBicim.format(toplamTutar) + " ₺" : "— ₺";
+      el("ozet-toplam-fark").innerHTML = farkYazisi(toplamTutar, topla(oncekiKayitlar, "tutar"), d);
+      // Dolum sayısı
+      el("ozet-dolum").textContent = sayi ? String(sayi) : "—";
+      el("ozet-dolum-alt").textContent = sayi ? "ort. " + tlBicim.format(toplamTutar / sayi) + " ₺" : bosYazi;
+      // Km başı maliyet = dönemin tüm yakıt tutarı ÷ dönemin gidilen km toplamı
       if (toplamKm > 0) {
         el("ozet-km").textContent = tlBicim.format(toplamTutar / toplamKm) + " ₺/km";
-        el("ozet-km-alt").textContent = kmYazisi(toplamKm) + " km · toplam " +
-          tlBicim.format(toplamTutar) + " ₺" +
-          (donemYakitlari.length > 1 ? " (" + donemYakitlari.join(" + ") + ")" : "");
+        el("ozet-km-alt").textContent = kmYazisi(toplamKm) + " km";
       } else {
         el("ozet-km").textContent = "— ₺/km";
-        el("ozet-km-alt").textContent = donemKayitlari.length
-          ? (gorunum === "ay" ? "Bu ay " : "Bu yıl ") + yakitAdi(ayar.anaYakit) + " kayıtlarında gidilen km girilmemiş."
-          : bosYazi;
+        el("ozet-km-alt").textContent = sayi ? "km girilmemiş" : bosYazi;
       }
       const oncekiKm = kmTopla(oncekiKayitlar);
       el("ozet-km-fark").innerHTML = toplamKm > 0 && oncekiKm > 0
         ? d.oncekiAdi + ": <b>" + tlBicim.format(topla(oncekiKayitlar, "tutar") / oncekiKm) + " ₺/km</b>"
         : "";
+      // 100 km'de tüketim: km'nin girildiği (ana) yakıtın ortalaması
+      const tuketim = yuzKmTuketim(donemKayitlari, ayar.anaYakit);
+      el("ozet-tuketim").textContent = tuketim != null ? tuketimBicim.format(tuketim) + " L" : "—";
+      el("ozet-tuketim-alt").textContent = tuketim != null
+        ? yakitAdi(ayar.anaYakit) + ", ortalama"
+        : (sayi ? "km girilmemiş" : bosYazi);
 
-      ayTahminiGoster(sirali, toplamTutar);
-
-      // Yıl toplamı kartı (sadece yıl görünümünde)
-      el("kart-yil").hidden = gorunum !== "yil";
-      if (gorunum === "yil") {
-        el("ozet-yil").textContent = donemKayitlari.length ? tlBicim.format(toplamTutar) + " ₺" : "— ₺";
-        if (donemKayitlari.length) {
-          const aylik = {};
-          donemKayitlari.forEach(k => { const a = k.tarih.slice(0, 7); aylik[a] = (aylik[a] || 0) + k.tutar; });
-          const aylar = Object.keys(aylik);
-          const enPahali = aylar.reduce((m, a) => aylik[a] > aylik[m] ? a : m, aylar[0]);
-          el("ozet-yil-alt").textContent =
-            donemKayitlari.length + " dolum" + (toplamKm > 0 ? " · " + kmYazisi(toplamKm) + " km" : "") +
-            " · aylık ort. " + tlBicim.format(toplamTutar / aylar.length) + " ₺\n" +
-            "En pahalı ay: " + AY_ADLARI[+enPahali.slice(5, 7) - 1] + " (" + tlBicim.format(aylik[enPahali]) + " ₺)";
-        } else {
-          el("ozet-yil-alt").textContent = bosYazi;
-        }
-        el("ozet-yil-fark").innerHTML = farkYazisi(toplamTutar, topla(oncekiKayitlar, "tutar"), d);
+      // --- Yıl ayrıntısı (sadece yıl görünümünde) ---
+      el("kart-yil").hidden = !(gorunum === "yil" && sayi);
+      if (gorunum === "yil" && sayi) {
+        const aylik = {};
+        donemKayitlari.forEach(k => { const a = k.tarih.slice(0, 7); aylik[a] = (aylik[a] || 0) + k.tutar; });
+        const aylar = Object.keys(aylik);
+        const enPahali = aylar.reduce((m, a) => aylik[a] > aylik[m] ? a : m, aylar[0]);
+        el("ozet-yil-alt").textContent =
+          "Aylık ortalama: " + tlBicim.format(toplamTutar / aylar.length) + " ₺ (kaydı olan aylar)\n" +
+          "En pahalı ay: " + AY_ADLARI[+enPahali.slice(5, 7) - 1] + " (" + tlBicim.format(aylik[enPahali]) + " ₺)";
       }
 
+      // --- Yakıta göre: tek çubukta pay oranı + her yakıtın satırı ---
+      const yakitlar = YAKIT_KODLARI.filter(kod => donemKayitlari.some(k => k.tur === kod));
+      el("pay-cubuk").innerHTML = yakitlar.map(kod =>
+        '<span style="flex:' + topla(donemKayitlari.filter(k => k.tur === kod), "tutar") +
+        ' 1 0%;background:var(--y-' + kod.toLowerCase() + ')"></span>').join("");
+      el("yakit-satirlari").innerHTML = yakitlar.length
+        ? yakitlar.map(kod => {
+            const liste = donemKayitlari.filter(k => k.tur === kod);
+            const tutar = topla(liste, "tutar"), litre = topla(liste, "litre");
+            return '<div class="yakit-satir"><i class="isaret buyuk is-' + kod + '"></i>' +
+              '<div class="orta">' + yakitAdi(kod) + "<small>" + liste.length + " dolum · " + tlBicim.format(litre) +
+              " L · ort. " + tlBicim.format(tutar / litre) + " ₺/L</small></div>" +
+              '<div class="sag">' + tlBicim.format(tutar) + " ₺<small>%" + Math.round(tutar / toplamTutar * 100) + "</small></div></div>";
+          }).join("")
+        : '<p class="bilgi">' + bosYazi + "</p>";
+
+      ayTahminiGoster(sirali, toplamTutar);
       grafikleriCiz(sirali);
     }
 
@@ -1661,17 +2125,24 @@
     }
 
     // -----------------------------------------------------
-    // GRAFİKLER (Sürüm 1.5, 1.5.1'de ay görünümü sadece o ay) — kütüphanesiz SVG, çevrimdışı da çalışır
-    // Ay görünümü: yatay eksen ayın günleri (1–31); her dolum kendi gününde.
-    // Yıl görünümü: yatay eksen o yılın 12 ayı.
-    // Aylık/günlük harcama: yakıt türüne göre üst üste çubuklar. Litre fiyatı: yakıt başına çizgi.
-    // Renk yakıta bağlıdır (LPG hep mavi, Benzin turuncu, Dizel mor), sırası değişmez.
-    // Bir güne/aya dokununca iki grafikte de seçilir, altında rakamları yazar, diğerleri soluklaşır.
+    // GRAFİKLER (Sürüm 1.5, 1.5.1; 2.0'da tek kartta üç sekme) — kütüphanesiz SVG, çevrimdışı da çalışır
+    // Ay görünümü: yatay eksen ayın günleri (1–31). Yıl görünümü: o yılın 12 ayı.
+    //   Harcama: yakıt türüne göre üst üste çubuklar.
+    //   Birikim: ay/yıl boyunca toplam harcamanın birikimi, önceki dönemle (kesikli çizgi) karşılaştırmalı.
+    //   Litre fiyatı: yakıt başına çizgi. Gri temada yakıtlar renkle değil çizgi biçimi ve nokta şekliyle de ayrılır
+    //   (LPG düz çizgi + daire, Benzin kesikli + kare, Dizel noktalı + baklava).
+    // Bir güne/aya dokununca seçilir, rakamları grafiğin üstünde yazar, diğer çubuklar soluklaşır.
     // -----------------------------------------------------
     const SVG_NS = "http://www.w3.org/2000/svg";
-    const GRAFIK_RENK = { LPG: "var(--g-lpg)", BENZIN: "var(--g-benzin)", DIZEL: "var(--g-dizel)" };
-    const G_YUKSEKLIK = 180, G_SOL = 44, G_SAG = 8, G_UST = 10, G_ALT = 22;
+    const GRAFIK_RENK = { LPG: "var(--y-lpg)", BENZIN: "var(--y-benzin)", DIZEL: "var(--y-dizel)" };
+    const FIYAT_STIL = {
+      LPG:    { dash: "",    sekil: "daire" },
+      BENZIN: { dash: "7 4", sekil: "kare" },
+      DIZEL:  { dash: "1 5", sekil: "baklava" }
+    };
+    const G_YUKSEKLIK = 190, G_SOL = 44, G_SAG = 8, G_UST = 10, G_ALT = 22;
     const kisaSayi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 1 });   // eksen yazıları: "2,5 bin"
+    const eksenBicim = v => v >= 1000 ? kisaSayi.format(v / 1000) + " bin" : kisaSayi.format(v);
 
     // Grafiğin yatay eksenindeki dilimler: { anahtar (tarihin başı), etiket (eksen), ad (ayrıntı yazısı), yazilsin }
     function grafikDilimleri() {
@@ -1691,7 +2162,8 @@
         yazilsin: [1, 8, 15, 22, 29].includes(i + 1)
       }));
     }
-    let grafikSecim = null;   // seçili dilimin anahtarı ("2026-08-05" ya da "2026-03"); null ise seçim yok
+    let grafikSecim = null;       // seçili dilimin anahtarı ("2026-08-05" ya da "2026-03"); null ise seçim yok
+    let grafikSekme = "harcama";  // "harcama" | "birikim" | "fiyat"
 
     // Eksen için "yuvarlak" adım: aralığı yaklaşık 3 parçaya böler
     function guzelAdim(aralik) {
@@ -1719,7 +2191,8 @@
       const dilim = cizimG / dilimler.length;
       const xOrta = i => G_SOL + dilim * (i + 0.5);
       for (let v = alt; v <= ust + adim / 1000; v += adim) {
-        svgEleman("line", { class: "izgara", x1: G_SOL, x2: G - G_SAG, y1: yOlcek(v), y2: yOlcek(v) }, svg);
+        // En alttaki çizgi (taban) düz, diğerleri kesikli
+        svgEleman("line", { class: "izgara" + (v === alt ? " taban" : ""), x1: G_SOL, x2: G - G_SAG, y1: yOlcek(v), y2: yOlcek(v) }, svg);
         const t = svgEleman("text", { x: G_SOL - 6, y: yOlcek(v) + 4, "text-anchor": "end" }, svg);
         t.textContent = yaziBicim(v);
       }
@@ -1732,9 +2205,35 @@
       return { G, dilim, xOrta, yOlcek };
     }
 
-    function lejantYaz(kutuId, kodlar) {
-      el(kutuId).innerHTML = kodlar.map(kod =>
-        '<span><i style="background:' + GRAFIK_RENK[kod] + '"></i>' + yakitAdi(kod) + "</span>").join("");
+    // Nokta: daire, kare ya da baklava. secili = zemin renginde halkalı büyük nokta
+    function noktaCiz(svg, sekil, x, y, r, renk, secili) {
+      const halka = secili ? { stroke: "var(--kart)", "stroke-width": 2 } : {};
+      if (sekil === "kare") {
+        return svgEleman("rect", { x: x - r, y: y - r, width: 2 * r, height: 2 * r, rx: 1.5, fill: renk, ...halka }, svg);
+      }
+      if (sekil === "baklava") {
+        const k = r + 1.5;
+        return svgEleman("polygon", { points: x + "," + (y - k) + " " + (x + k) + "," + y + " " + x + "," + (y + k) + " " + (x - k) + "," + y, fill: renk, ...halka }, svg);
+      }
+      return svgEleman("circle", { cx: x, cy: y, r: r, fill: renk, ...halka }, svg);
+    }
+
+    // Lejant: çubuk grafiğinde yakıt işareti, çizgi grafiklerinde çizgi + nokta örneği
+    function lejantKareler(kodlar) {
+      el("grafik-lejant").innerHTML = kodlar.map(kod =>
+        '<span><i class="isaret is-' + kod + '"></i>' + yakitAdi(kod) + "</span>").join("");
+    }
+    function cizgiOrnegi(renk, dash, sekil) {
+      let s = '<svg viewBox="0 0 28 12" aria-hidden="true"><line x1="0" y1="6" x2="28" y2="6" stroke="' + renk + '" stroke-width="2.5" stroke-linecap="round"' +
+        (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/>";
+      if (sekil === "daire") s += '<circle cx="14" cy="6" r="3.5" fill="' + renk + '"/>';
+      if (sekil === "kare") s += '<rect x="10.5" y="2.5" width="7" height="7" rx="1.5" fill="' + renk + '"/>';
+      if (sekil === "baklava") s += '<polygon points="14,1 19,6 14,11 9,6" fill="' + renk + '"/>';
+      return s + "</svg>";
+    }
+    function lejantCizgiler(kodlar) {
+      el("grafik-lejant").innerHTML = kodlar.map(kod =>
+        "<span>" + cizgiOrnegi(GRAFIK_RENK[kod], FIYAT_STIL[kod].dash, FIYAT_STIL[kod].sekil) + yakitAdi(kod) + "</span>").join("");
     }
 
     function grafikleriCiz(sirali) {
@@ -1753,84 +2252,163 @@
         return v;
       });
       const kodlar = YAKIT_KODLARI.filter(kod => veri.some(v => v.tutar[kod] > 0));
-      const veriVar = kodlar.length > 0;
-      el("kart-harcama-grafik").hidden = !veriVar;
-      el("kart-fiyat-grafik").hidden = !veriVar;
-      if (!veriVar) return;
+      el("kart-grafik").hidden = kodlar.length === 0;
+      if (!kodlar.length) return;
 
       const ayMi = gorunum === "ay";
       if (!dilimler.some(d => d.anahtar === grafikSecim)) grafikSecim = null;
       const secili = dilimler.findIndex(d => d.anahtar === grafikSecim);
-      const ipucu = "<small>Ayrıntı için bir " + (ayMi ? "dolum çubuğuna" : "aya") + " dokun.</small>";
-      el("harcama-grafik-baslik").textContent = ayMi ? "Dolumlar (" + ayYazisi(seciliAy) + ")" : "Aylık harcama (" + seciliAy.slice(0, 4) + ")";
-      el("fiyat-grafik-baslik").textContent = ayMi ? "Litre fiyatı (₺/L)" : "Litre fiyatı (aylık ortalama ₺/L)";
-      lejantYaz("harcama-lejant", kodlar);
-      lejantYaz("fiyat-lejant", kodlar);
+      const donem = ayMi ? ayYazisi(seciliAy) : seciliAy.slice(0, 4);
+      if (grafikSekme === "birikim") birikimCiz(sirali, dilimler, secili, ayMi, donem);
+      else if (grafikSekme === "fiyat") fiyatCiz(veri, dilimler, kodlar, secili, ayMi, donem);
+      else harcamaCiz(veri, dilimler, kodlar, secili, ayMi, donem);
+    }
 
-      // --- Harcama: üst üste çubuklar ---
-      const svg1 = el("harcama-grafik");
+    // --- Sekme 1: Harcama (üst üste çubuklar) ---
+    function harcamaCiz(veri, dilimler, kodlar, secili, ayMi, donem) {
+      el("grafik-baslik").textContent = (ayMi ? "Dolumlar" : "Aylık harcama") + " · " + donem;
+      lejantKareler(kodlar);
+      const svg = el("grafik");
       const enCok = Math.max(...veri.map(v => v.toplam));
-      const adim1 = guzelAdim(enCok);
-      const o1 = grafikIskelet(svg1, dilimler, 0, Math.ceil(enCok / adim1) * adim1, adim1,
-        v => v >= 1000 ? kisaSayi.format(v / 1000) + " bin" : kisaSayi.format(v));
-      const cubukG = Math.max(4, Math.min(22, o1.dilim * (ayMi ? 0.8 : 0.62)));
+      const adim = guzelAdim(enCok);
+      const o = grafikIskelet(svg, dilimler, 0, Math.ceil(enCok / adim) * adim, adim, eksenBicim);
+      const cubukG = Math.max(4, Math.min(22, o.dilim * (ayMi ? 0.8 : 0.62)));
       veri.forEach((v, i) => {
         if (!(v.toplam > 0)) return;
-        const grup = svgEleman("g", secili >= 0 && i !== secili ? { class: "soluk" } : {}, svg1);
-        const x = o1.xOrta(i) - cubukG / 2;
-        let taban = o1.yOlcek(0);
+        const grup = svgEleman("g", secili >= 0 && i !== secili ? { class: "soluk" } : {}, svg);
+        const x = o.xOrta(i) - cubukG / 2;
+        let taban = o.yOlcek(0);
         const parcalar = kodlar.filter(kod => v.tutar[kod] > 0);
         parcalar.forEach((kod, j) => {
           // Parça yüksekliği; üstteki parçalardan 2px boşluk düşülür (parçalar ayrı görünsün)
-          const h = Math.max(1, o1.yOlcek(0) - o1.yOlcek(v.tutar[kod]) - (j > 0 ? 2 : 0));
+          const h = Math.max(1, o.yOlcek(0) - o.yOlcek(v.tutar[kod]) - (j > 0 ? 2 : 0));
           const y = taban - h;
           const r = j === parcalar.length - 1 ? Math.min(4, h / 2, cubukG / 2) : 0;   // sadece en üst köşeler yuvarlak
           svgEleman("path", {
             d: "M" + x + "," + taban + "V" + (y + r) + "Q" + x + "," + y + " " + (x + r) + "," + y +
                "H" + (x + cubukG - r) + "Q" + (x + cubukG) + "," + y + " " + (x + cubukG) + "," + (y + r) +
                "V" + taban + "Z",
-            fill: GRAFIK_RENK[kod]
+            fill: GRAFIK_RENK[kod],
+            stroke: "var(--halka)", "stroke-width": 0.75
           }, grup);
           taban = y - 2;
         });
       });
-      el("harcama-detay").innerHTML = secili >= 0 ? harcamaDetayi(veri[secili], kodlar) : ipucu;
+      el("grafik-detay").innerHTML = secili >= 0
+        ? harcamaDetayi(veri[secili], kodlar)
+        : "<small>Ayrıntı için bir " + (ayMi ? "dolum çubuğuna" : "aya") + " dokun.</small>";
+    }
 
-      // --- Litre fiyatı: yakıt başına çizgi (kaydı olmayan dilimler atlanıp noktalar birleştirilir) ---
-      const svg2 = el("fiyat-grafik");
+    // --- Sekme 2: Birikim (ay/yıl boyunca toplam harcama, önceki dönemle karşılaştırmalı) ---
+    function birikimCiz(sirali, dilimler, secili, ayMi, donem) {
+      el("grafik-baslik").textContent = "Birikim · " + donem;
+      const svg = el("grafik");
+      const n = dilimler.length;
+      const bugunAy = buAy();
+      // Çizgi, içinde bulunulan ay/yılda bugüne (bu aya) kadar; geçmiş dönemde sonuna kadar uzanır
+      let curSon = n - 1;
+      if (ayMi && seciliAy === bugunAy) curSon = new Date().getDate() - 1;
+      if (!ayMi && seciliAy.slice(0, 4) === bugunAy.slice(0, 4)) curSon = +bugunAy.slice(5, 7) - 1;
+      const oncekiDonem = ayMi ? ayKaydir(seciliAy, -1) : String(+seciliAy.slice(0, 4) - 1);
+      const oncekiUzunluk = ayMi ? new Date(+oncekiDonem.slice(0, 4), +oncekiDonem.slice(5, 7), 0).getDate() : 12;
+      const dilimTutari = anahtar => topla(sirali.filter(k => k.tarih.startsWith(anahtar)), "tutar");
+      const cur = [], onc = [];
+      let c = 0, p = 0;
+      for (let i = 0; i < n; i++) {
+        c += dilimTutari(dilimler[i].anahtar);
+        cur.push(c);
+        if (i < oncekiUzunluk) { p += dilimTutari(oncekiDonem + "-" + ikiHane(i + 1)); onc.push(p); }
+      }
+      const oncVar = onc.length > 0 && onc[onc.length - 1] > 0;
+
+      const enCok = Math.max(cur[curSon], oncVar ? onc[onc.length - 1] : 0, 1);
+      const adim = guzelAdim(enCok);
+      const o = grafikIskelet(svg, dilimler, 0, Math.ceil(enCok / adim) * adim, adim, eksenBicim);
+      if (secili >= 0) {
+        svgEleman("line", { class: "imlec", x1: o.xOrta(secili), x2: o.xOrta(secili), y1: G_UST, y2: o.yOlcek(0) }, svg);
+      }
+      // Ay görünümünde basamaklı (dolum günü yukarı sıçrar), yıl görünümünde düz çizgi
+      const yol = (dizi, son) => {
+        let s = "";
+        for (let i = 0; i <= son; i++) {
+          const x = o.xOrta(i), y = o.yOlcek(dizi[i]);
+          s += i === 0 ? "M" + x + "," + y : (ayMi ? "H" + x + "V" + y : "L" + x + "," + y);
+        }
+        return s;
+      };
+      if (oncVar) {
+        svgEleman("path", { d: yol(onc, onc.length - 1), fill: "none", stroke: "var(--soluk)", "stroke-width": 2,
+          "stroke-dasharray": "6 4", "stroke-linejoin": "round" }, svg);
+      }
+      svgEleman("path", { d: yol(cur, curSon), fill: "none", stroke: "var(--vurgu)", "stroke-width": 2.5,
+        "stroke-linejoin": "round" }, svg);
+      if (!ayMi) {
+        for (let i = 0; i <= curSon; i++) noktaCiz(svg, "daire", o.xOrta(i), o.yOlcek(cur[i]), 3, "var(--vurgu)", false);
+      }
+      if (secili >= 0) {
+        if (oncVar && secili < onc.length) noktaCiz(svg, "daire", o.xOrta(secili), o.yOlcek(onc[secili]), 4, "var(--soluk)", true);
+        if (secili <= curSon) noktaCiz(svg, "daire", o.xOrta(secili), o.yOlcek(cur[secili]), 5, "var(--vurgu)", true);
+      }
+
+      const guncelAd = ayMi ? AY_ADLARI[+seciliAy.slice(5, 7) - 1] : seciliAy.slice(0, 4);
+      const oncAd = ayMi ? AY_ADLARI[+oncekiDonem.slice(5, 7) - 1] : oncekiDonem;
+      const karsilik = ayMi ? " aynı günde " : " aynı dönemde ";
+      let detay;
+      if (secili >= 0 && secili > curSon) {
+        detay = "<b>" + dilimler[secili].ad + "</b> · henüz kayıt yok";
+      } else if (secili >= 0) {
+        detay = "<b>" + dilimler[secili].ad + "</b> · " + tlBicim.format(cur[secili]) + " ₺ birikti" +
+          (oncVar && secili < onc.length ? "<br><small>" + oncAd + karsilik + tlBicim.format(onc[secili]) + " ₺</small>" : "");
+      } else {
+        detay = "<b>" + tlBicim.format(cur[curSon]) + " ₺</b> harcandı" +
+          (oncVar
+            ? "<br><small>" + oncAd + karsilik + tlBicim.format(onc[Math.min(curSon, onc.length - 1)]) + " ₺</small>"
+            : "<br><small>Ayrıntı için bir " + (ayMi ? "güne" : "aya") + " dokun.</small>");
+      }
+      el("grafik-detay").innerHTML = detay;
+      el("grafik-lejant").innerHTML =
+        "<span>" + cizgiOrnegi("var(--vurgu)", "", "") + guncelAd + "</span>" +
+        (oncVar ? "<span>" + cizgiOrnegi("var(--soluk)", "6 4", "") + oncAd + "</span>" : "");
+    }
+
+    // --- Sekme 3: Litre fiyatı (yakıt başına çizgi; kaydı olmayan dilimler atlanıp noktalar birleştirilir) ---
+    function fiyatCiz(veri, dilimler, kodlar, secili, ayMi, donem) {
+      el("grafik-baslik").textContent = (ayMi ? "Litre fiyatı (₺/L)" : "Aylık ortalama litre fiyatı (₺/L)") + " · " + donem;
+      lejantCizgiler(kodlar);
+      const svg = el("grafik");
       const fiyatlar = veri.flatMap(v => kodlar.map(kod => v.fiyat[kod]).filter(f => f != null));
       let enAz = Math.min(...fiyatlar), enFazla = Math.max(...fiyatlar);
       if (enFazla - enAz < 1) { enAz -= 1; enFazla += 1; }
-      const adim2 = guzelAdim(enFazla - enAz);
-      const alt2 = Math.max(0, Math.floor(enAz / adim2) * adim2), ust2 = Math.ceil(enFazla / adim2) * adim2;
-      const o2 = grafikIskelet(svg2, dilimler, alt2, ust2, adim2, v => tlBicim.format(v).replace(/,00$/, ""));
+      const adim = guzelAdim(enFazla - enAz);
+      const alt = Math.max(0, Math.floor(enAz / adim) * adim), ust = Math.ceil(enFazla / adim) * adim;
+      const o = grafikIskelet(svg, dilimler, alt, ust, adim, v => tlBicim.format(v).replace(/,00$/, ""));
       if (secili >= 0) {
-        svgEleman("line", { class: "imlec", x1: o2.xOrta(secili), x2: o2.xOrta(secili), y1: G_UST, y2: o2.yOlcek(alt2) }, svg2);
+        svgEleman("line", { class: "imlec", x1: o.xOrta(secili), x2: o.xOrta(secili), y1: G_UST, y2: o.yOlcek(alt) }, svg);
       }
       kodlar.forEach(kod => {
+        const stil = FIYAT_STIL[kod];
         let yol = "";
         veri.forEach((v, i) => {
           if (v.fiyat[kod] == null) return;
-          yol += (yol ? "L" : "M") + o2.xOrta(i) + "," + o2.yOlcek(v.fiyat[kod]);
+          yol += (yol ? "L" : "M") + o.xOrta(i) + "," + o.yOlcek(v.fiyat[kod]);
         });
-        svgEleman("path", { d: yol, fill: "none", stroke: GRAFIK_RENK[kod], "stroke-width": 2,
-          "stroke-linejoin": "round", "stroke-linecap": "round" }, svg2);
+        svgEleman("path", Object.assign({ d: yol, fill: "none", stroke: GRAFIK_RENK[kod], "stroke-width": 2.5,
+          "stroke-linejoin": "round", "stroke-linecap": "round" }, stil.dash ? { "stroke-dasharray": stil.dash } : {}), svg);
         veri.forEach((v, i) => {
           if (v.fiyat[kod] == null) return;
-          // Seçili dilimin noktası büyük ve zemin renginde halkalı, diğerleri küçük
-          svgEleman("circle", i === secili
-            ? { cx: o2.xOrta(i), cy: o2.yOlcek(v.fiyat[kod]), r: 5, fill: GRAFIK_RENK[kod], stroke: "var(--kart)", "stroke-width": 2 }
-            : { cx: o2.xOrta(i), cy: o2.yOlcek(v.fiyat[kod]), r: 3, fill: GRAFIK_RENK[kod] }, svg2);
+          noktaCiz(svg, stil.sekil, o.xOrta(i), o.yOlcek(v.fiyat[kod]), i === secili ? 5 : 3.5, GRAFIK_RENK[kod], i === secili);
         });
       });
-      el("fiyat-detay").innerHTML = secili >= 0 ? fiyatDetayi(veri[secili], kodlar) : ipucu;
+      el("grafik-detay").innerHTML = secili >= 0
+        ? fiyatDetayi(veri[secili], kodlar)
+        : "<small>Ayrıntı için bir " + (ayMi ? "dolum gününe" : "aya") + " dokun.</small>";
     }
 
     function harcamaDetayi(v, kodlar) {
       if (!(v.toplam > 0)) return "<b>" + v.d.ad + "</b> · kayıt yok";
       const parcalar = kodlar.filter(kod => v.tutar[kod] > 0)
         .map(kod => yakitAdi(kod) + " " + tlBicim.format(v.tutar[kod]) + " ₺ (" + tlBicim.format(v.litre[kod]) + " L)");
-      return "<b>" + v.d.ad + "</b> · " + v.dolum + " dolum · toplam " + tlBicim.format(v.toplam) + " ₺<br><small>" +
+      return "<b>" + v.d.ad + "</b> · " + tlBicim.format(v.toplam) + " ₺ · " + v.dolum + " dolum<br><small>" +
         parcalar.join(" · ") + "</small>";
     }
     function fiyatDetayi(v, kodlar) {
@@ -1841,6 +2419,7 @@
 
     // Grafiğe dokununca: dokunulan dilimi bul (çubuktan büyük alan: dilimin tamamı).
     // Ay görünümünde boş güne dokunulursa en yakın dolumlu gün seçilir (ince çubuklara isabet kolay olsun).
+    // Birikim sekmesinde her gün seçilebilir.
     function grafikDokunma(olay) {
       const svg = olay.currentTarget;
       const kutu = svg.getBoundingClientRect();
@@ -1850,7 +2429,7 @@
       const dilim = (G - G_SOL - G_SAG) / dilimler.length;
       let i = Math.floor((x - G_SOL) / dilim);
       if (i < 0 || i >= dilimler.length) return;
-      if (gorunum === "ay") {
+      if (gorunum === "ay" && grafikSekme !== "birikim") {
         const sirali = siraliKayitlar();
         const dolu = dilimler.map(d => sirali.some(k => k.tarih === d.anahtar));
         if (!dolu[i]) {
@@ -1863,8 +2442,12 @@
       grafikSecim = grafikSecim === anahtar ? null : anahtar;   // aynı yere ikinci dokunuş seçimi kaldırır
       grafikleriCiz(siraliKayitlar());
     }
-    el("harcama-grafik").addEventListener("click", grafikDokunma);
-    el("fiyat-grafik").addEventListener("click", grafikDokunma);
+    el("grafik").addEventListener("click", grafikDokunma);
+    el("grafik-sekmeler").addEventListener("change", () => {
+      grafikSekme = el("gs-birikim").checked ? "birikim" : el("gs-fiyat").checked ? "fiyat" : "harcama";
+      grafikSecim = null;
+      grafikleriCiz(siraliKayitlar());
+    });
 
     // Ekran döndürülünce / boyut değişince grafikler yeni genişliğe göre çizilsin
     let boyutZamanlayici = null;
@@ -2180,6 +2763,9 @@
     });
 
     // Uygulama açılınca
+    // Görünüm ilk açılışta kaydedilir (mod telefonun ayarından alınır, sonra seçim kalıcıdır)
+    if (!gorunumKayitliMi()) gorunumYaz(gorunumAyariOku());
+    gorunumUygula(gorunumAyariOku());
     sayacKayitlariniCevir();
     ayarKartiGoster();
     formuSifirla();
