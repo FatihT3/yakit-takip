@@ -1013,7 +1013,7 @@
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
     // (Sürüm 2.0'dan beri ekranda gösterilmez; sadece yedek dosyasına yazılır.)
-    const SURUM = "2.1";
+    const SURUM = "2.2";
 
     // --- Sekme geçişi ---
     // Alttaki bir butona basılınca ilgili sayfayı gösterir, diğerlerini gizler
@@ -2251,11 +2251,20 @@
     }
 
     // -----------------------------------------------------
-    // AY SONU TAHMİNİ (Sürüm 1.6) — sadece içinde bulunulan ay seçiliyken görünür.
-    // Tahmin = bu ay şimdiye kadar harcanan + (son 3 tam ayın günlük ortalama harcaması × ayın kalan günleri).
-    // "Harcanan ÷ geçen gün" kullanılmaz: ayın başında depo doldurulunca tahmin çok şişerdi.
-    // Son 3 ayda hiç kayıt yoksa tahmin gösterilmez.
+    // AY SONU TAHMİNİ (Sürüm 1.6, 2.2'de yakıt başına hesap) — sadece içinde bulunulan ay seçiliyken görünür.
+    // Her yakıt AYRI hesaplanır, sonra toplanır (çift yakıtlı araçta LPG ile benzin karışmasın diye):
+    //   yakıtın tahmini = bu ay o yakıta harcanan
+    //                   + kalan gün × günlük ortalama litre × son 5 dolumun ortalama litre fiyatı
+    // Günlük ortalama litre = son 30 gündeki dolumların litre toplamı ÷ 30.
+    // Seyrek alınan yakıt (son 30 günde 2'den az dolum, örn. ara sıra alınan benzin) için pencere 90 güne
+    // uzatılır; yoksa 30 güne bir dolum düşünce tahmin şişer, düşmeyince sıfır çıkar.
+    // Son 5 dolumun fiyatı litreye göre ağırlıklıdır (tutar toplamı ÷ litre toplamı).
+    // Bugün geçmiş sayılır. Hiçbir yakıtın son 90 günde dolumu yoksa kart gizli.
     // -----------------------------------------------------
+    function isoGun(t) {
+      return t.getFullYear() + "-" + ikiHane(t.getMonth() + 1) + "-" + ikiHane(t.getDate());
+    }
+
     function ayTahminiGoster(sirali, buAyHarcanan) {
       const goster = gorunum === "ay" && seciliAy === buAy();
       el("kart-tahmin").hidden = true;
@@ -2264,27 +2273,46 @@
       const bugun = new Date();
       const gunSayisi = new Date(bugun.getFullYear(), bugun.getMonth() + 1, 0).getDate();
       const kalanGun = gunSayisi - bugun.getDate();   // bugün geçmiş sayılır
+      const bugunYazi = isoGun(bugun);
+      // "n gün öncesinden bu yana" sınırı: bugün dahil n gün
+      const sinir = n => isoGun(new Date(bugun.getFullYear(), bugun.getMonth(), bugun.getDate() - n + 1));
 
-      // Son 3 tam ay: toplam harcama ÷ o ayların gün sayısı
-      let toplam = 0, gun = 0;
-      for (let i = 1; i <= 3; i++) {
-        const ay = ayKaydir(seciliAy, -i);
-        const [y, a] = ay.split("-").map(Number);
-        gun += new Date(y, a, 0).getDate();
-        toplam += topla(sirali.filter(k => k.tarih.startsWith(ay)), "tutar");
-      }
-      if (!(toplam > 0)) return;
-      const gunluk = toplam / gun;
-      const tahmin = buAyHarcanan + gunluk * kalanGun;
+      const parcalar = [];   // { kod, harcanan, gunlukLitre, fiyat, kalanTutar, pencere }
+      YAKIT_KODLARI.forEach(kod => {
+        const liste = sirali.filter(k => k.tur === kod && k.tarih <= bugunYazi && k.litre > 0)
+          .sort((x, y) => (x.tarih + (x.saat || "")).localeCompare(y.tarih + (y.saat || "")));
+        if (!liste.length) return;
+        const harcanan = topla(liste.filter(k => k.tarih.startsWith(seciliAy)), "tutar");
+
+        let pencere = 30;
+        let son = liste.filter(k => k.tarih >= sinir(30));
+        if (son.length < 2) { pencere = 90; son = liste.filter(k => k.tarih >= sinir(90)); }
+        const gunlukLitre = topla(son, "litre") / pencere;
+
+        const son5 = liste.slice(-5);
+        const fiyat = topla(son5, "tutar") / topla(son5, "litre");
+        const kalanTutar = gunlukLitre > 0 && fiyat > 0 ? gunlukLitre * fiyat * kalanGun : 0;
+        if (harcanan > 0 || gunlukLitre > 0) parcalar.push({ kod, harcanan, gunlukLitre, fiyat, kalanTutar, pencere });
+      });
+      if (!parcalar.some(p => p.gunlukLitre > 0)) return;
+
+      const tahmin = buAyHarcanan + parcalar.reduce((t, p) => t + p.kalanTutar, 0);
       const tamSayi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
+      const litreBicim = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
       el("kart-tahmin").hidden = false;
       el("ozet-tahmin").textContent = "≈ " + tamSayi.format(Math.round(tahmin / 10) * 10) + " ₺";
-      el("ozet-tahmin-alt").textContent =
-        "Şu ana kadar " + tlBicim.format(buAyHarcanan) + " ₺" +
-        (kalanGun > 0
-          ? " + kalan " + kalanGun + " gün × günlük ort. " + tlBicim.format(gunluk) + " ₺ (son 3 ay)"
-          : " (ayın son günü)");
+      if (kalanGun > 0) {
+        const satirlar = parcalar.filter(p => p.gunlukLitre > 0).map(p =>
+          yakitAdi(p.kod) + ": " + litreBicim.format(p.gunlukLitre) + " L/gün × " + tlBicim.format(p.fiyat) +
+          " ₺/L ≈ " + tamSayi.format(p.kalanTutar) + " ₺" + (p.pencere === 90 ? " (son 90 gün)" : ""));
+        el("ozet-tahmin-alt").innerHTML =
+          "Şu ana kadar " + tlBicim.format(buAyHarcanan) + " ₺ + kalan " + kalanGun + " gün:<br>" +
+          satirlar.join("<br>") +
+          '<br><small>Günlük litre son 30 günden, fiyat son 5 dolumdan.</small>';
+      } else {
+        el("ozet-tahmin-alt").textContent = "Şu ana kadar " + tlBicim.format(buAyHarcanan) + " ₺ (ayın son günü)";
+      }
     }
 
     // -----------------------------------------------------
