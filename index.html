@@ -821,6 +821,29 @@
           <input type="radio" name="ana-yakit" id="ana-DIZEL" value="DIZEL"><label for="ana-DIZEL"><i class="isaret is-DIZEL"></i>Dizel</label>
         </div>
       </div>
+      <!-- Km nasıl giriliyor (Sürüm 2.1): gidilen km ya da aracın km'si (sayaç) -->
+      <div class="ayar-baslik">Km'yi nasıl giriyorum?</div>
+      <div class="secim" id="ayar-kmgiris">
+        <input type="radio" name="km-giris" id="kmgiris-gidilen" value="gidilen"><label for="kmgiris-gidilen">Gidilen km</label>
+        <input type="radio" name="km-giris" id="kmgiris-sayac" value="sayac"><label for="kmgiris-sayac">Aracın km'si</label>
+      </div>
+      <!-- Sayaca geçerken bir kereliğine sorulur: son dolumdaki araç km'si bulunur -->
+      <div id="sayac-baslangic" hidden style="margin-top:12px">
+        <div class="alan">
+          <label for="b-sayac">Araç şu an kaç km'de?</label>
+          <input type="text" inputmode="decimal" id="b-sayac" placeholder="Örn. 128.450">
+        </div>
+        <div class="alan">
+          <label for="b-trip" id="b-trip-baslik">Son dolumdan beri gidilen km</label>
+          <input type="text" inputmode="decimal" id="b-trip" placeholder="Örn. 120">
+          <div class="ipucu">Trip sayacında yazan km. Depoyu yeni doldurduysan boş bırak.</div>
+        </div>
+        <div class="yan-yana">
+          <button type="button" class="ikincil-dugme" id="b-vazgec" style="flex:1">Vazgeç</button>
+          <button type="button" class="ikincil-dugme birincil" id="b-kaydet" style="flex:1">Kaydet</button>
+        </div>
+        <div class="ipucu hata" id="b-hata"></div>
+      </div>
       <div class="ipucu" id="ayar-ipucu"></div>
     </div>
 
@@ -990,7 +1013,7 @@
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
     // (Sürüm 2.0'dan beri ekranda gösterilmez; sadece yedek dosyasına yazılır.)
-    const SURUM = "2.0";
+    const SURUM = "2.1";
 
     // --- Sekme geçişi ---
     // Alttaki bir butona basılınca ilgili sayfayı gösterir, diğerlerini gizler
@@ -1089,7 +1112,8 @@
 
     const AYAR_ANAHTARI = "yakitAyarlar_v1";
     // Varsayılan: LPG + benzin, km LPG'de (1.4 öncesi davranışla aynı)
-    const VARSAYILAN_AYARLAR = { yakitlar: ["LPG", "BENZIN"], anaYakit: "LPG" };
+    // kmGiris (Sürüm 2.1): "gidilen" = son dolumdan beri gidilen km, "sayac" = aracın km'si (fark hesaplanır)
+    const VARSAYILAN_AYARLAR = { yakitlar: ["LPG", "BENZIN"], anaYakit: "LPG", kmGiris: "gidilen" };
 
     function ayarlariOku() {
       let a = null;
@@ -1098,7 +1122,8 @@
       // Bozuk değerleri ayıkla: bilinen yakıtlar, en az bir tane, ana yakıt seçililerden biri
       const yakitlar = YAKIT_KODLARI.filter(k => a.yakitlar.includes(k));
       if (!yakitlar.length) return { ...VARSAYILAN_AYARLAR };
-      return { yakitlar, anaYakit: yakitlar.includes(a.anaYakit) ? a.anaYakit : yakitlar[0] };
+      return { yakitlar, anaYakit: yakitlar.includes(a.anaYakit) ? a.anaYakit : yakitlar[0],
+               kmGiris: a.kmGiris === "sayac" ? "sayac" : "gidilen" };
     }
     function ayarlariYaz(a) {
       try { localStorage.setItem(AYAR_ANAHTARI, JSON.stringify(a)); } catch (e) {}
@@ -1126,8 +1151,13 @@
 
     // Kilometre kutusundaki rakamları tam sayıya çevirir ("128.450" → 128450)
     // Gidilen km: ondalıklı olabilir ("281,1" → 281.1) (Sürüm 1.2)
+    // Aracın km'si (Sürüm 2.1): "128.450" binlik noktayla yazılmışsa 128450 okunur
+    function sayacSayisi(metin) {
+      const m = (metin || "").trim().replace(/\s/g, "");
+      return /^\d{1,3}(\.\d{3})+$/.test(m) ? Number(m.replace(/\./g, "")) : sayiyaCevir(m);
+    }
     function kmOku() {
-      const km = sayiyaCevir(el("f-km").value);
+      const km = formKmModu() === "sayac" ? sayacSayisi(el("f-km").value) : sayiyaCevir(el("f-km").value);
       return isNaN(km) ? NaN : Math.round(km * 10) / 10;
     }
     // km'yi Türkçe yazar: 281.1 → "281,1", 5304.1 → "5.304,1"
@@ -1207,14 +1237,46 @@
 
     // Düzenlenen kaydın açılıştaki km'si (ana yakıt sonradan değiştiyse eski km kaybolmasın diye)
     let duzenlenenKm = null;
+    // Düzenlenen kaydın aracın km'si (sayaç modunda girilmişse) — Sürüm 2.1
+    let duzenlenenSayac = null;
+
+    // Formdaki km kutusu ne istiyor? Düzenlemede kaydın kendi biçimi, yeni kayıtta ayar (Sürüm 2.1)
+    function formKmModu() {
+      if (duzenlenenId) return duzenlenenSayac != null ? "sayac" : "gidilen";
+      return ayarlariOku().kmGiris;
+    }
+    // Aynı türdeki bir önceki / bir sonraki dolum (tarih + saate göre), düzenlenen kayıt hariç
+    function komsuDolumlar(tur, tarih, saat) {
+      const anahtar = tarih + (saat || "");
+      const ayni = siraliKayitlar().filter(k => k.tur === tur && k.id !== duzenlenenId);
+      const once = ayni.filter(k => (k.tarih + (k.saat || "")) <= anahtar);
+      const sonra = ayni.filter(k => (k.tarih + (k.saat || "")) > anahtar);
+      return { onceki: once[once.length - 1] || null, sonraki: sonra[0] || null };
+    }
 
     // Km bölümü: ana yakıtta görünür ve zorunludur, diğer yakıtlarda gizlenir (Sürüm 1.4).
     // İstisna: düzenlenen kayıtta zaten km varsa (ana yakıt sonradan değişmiş) isteğe bağlı görünür.
     function kmZorunlu() { return seciliTur() === ayarlariOku().anaYakit; }
     function kmIpucuGoster() {
       const zorunlu = kmZorunlu();
-      el("km-blok").hidden = !zorunlu && duzenlenenKm == null;
+      el("km-blok").hidden = !zorunlu && duzenlenenKm == null && duzenlenenSayac == null;
       el("km-ipucu").classList.remove("hata");
+      if (formKmModu() === "sayac") {
+        el("km-blok").querySelector("label").textContent = "Aracın km'si";
+        el("f-km").placeholder = "Örn. 128.450";
+        const { onceki } = komsuDolumlar(seciliTur(), el("f-tarih").value, el("f-saat").value);
+        const km = kmOku();
+        if (onceki && typeof onceki.kmSayaci === "number") {
+          el("km-ipucu").textContent = km > onceki.kmSayaci
+            ? "Önceki dolum " + kmYazisi(onceki.kmSayaci) + " km → bu dolumda " + kmYazisi(Math.round((km - onceki.kmSayaci) * 10) / 10) + " km gidildi"
+            : "Önceki " + yakitAdi(seciliTur()) + " dolumunda araç " + kmYazisi(onceki.kmSayaci) + " km'deydi";
+        } else {
+          el("km-ipucu").textContent = "Önceki dolumun km'si bilinmiyor; bu kayıt başlangıç olur, gidilen km sonraki dolumdan itibaren hesaplanır.";
+        }
+        return;
+      }
+      el("km-blok").querySelector("label").textContent = "Gidilen km";
+      el("f-km").placeholder = "Örn. 420";
       el("km-ipucu").textContent = zorunlu
         ? "Bir önceki " + yakitAdi(seciliTur()) + " dolumundan bu yana gidilen kilometre"
         : "İsteğe bağlı (km artık " + yakitAdi(ayarlariOku().anaYakit) + " dolumunda giriliyor)";
@@ -1257,6 +1319,7 @@
     // Formu temizler, tarih/saati şu ana ayarlar. Yakıt türü ana yakıta döner (Sürüm 1.4).
     function formuSifirla() {
       duzenlenenKm = null;
+      duzenlenenSayac = null;
       turSec(ayarlariOku().anaYakit);
       const simdi = new Date();
       el("f-tarih").value = simdi.getFullYear() + "-" + ikiHane(simdi.getMonth() + 1) + "-" + ikiHane(simdi.getDate());
@@ -1292,14 +1355,17 @@
         el("panel-baslik").textContent = "Kaydı Düzenle";
         el("sil-dugmesi").hidden = false;
         duzenlenenKm = typeof kayit.gidilenKm === "number" ? kayit.gidilenKm : null;
+        duzenlenenSayac = typeof kayit.kmSayaci === "number" ? kayit.kmSayaci : null;
         turSec(kayit.tur);
         el("f-tarih").value = kayit.tarih;
         el("f-saat").value = kayit.saat || "";
         el("f-istasyon").value = kayit.istasyon || "";
         ucluDoldur(kayit.litre, kayit.tutar);
-        el("f-km").value = kayit.gidilenKm ? kmYazisi(kayit.gidilenKm).replace(/\./g, "") : "";
-        kmIpucuGoster();
+        el("f-km").value = duzenlenenSayac != null
+          ? kmYazisi(duzenlenenSayac).replace(/\./g, "")
+          : (kayit.gidilenKm ? kmYazisi(kayit.gidilenKm).replace(/\./g, "") : "");
       }
+      kmIpucuGoster();   // km kutusu: yeni kayıtta ayara, düzenlemede kaydın kendi biçimine göre
 
       el("ekle-paneli").scrollTop = 0;
       el("ekle-paneli").classList.add("acik");
@@ -1357,9 +1423,31 @@
       // Km: ana yakıtta zorunlu; diğer yakıtta sadece km bölümü görünüyorsa (eski km'li kayıt) isteğe bağlı
       const zorunlu = kmZorunlu();
       const kmGorunur = !el("km-blok").hidden;
-      if (zorunlu && (isNaN(km) || km <= 0)) return hataGoster("Gidilen km'yi girin.");
-      if (kmGorunur && km > 5000) return hataGoster("Gidilen km çok büyük. Sayaç değerini değil, gidilen km'yi girin.");
-      const kaydedilecekKm = kmGorunur && km > 0 ? km : null;
+      let kaydedilecekKm, kaydedilecekSayac;
+      if (kmGorunur && formKmModu() === "sayac") {
+        // Sayaç modu (Sürüm 2.1): aracın km'si girilir, önceki dolumla farkı gidilen km olur
+        if (zorunlu && (isNaN(km) || km <= 0)) return hataGoster("Aracın km'sini girin.");
+        const { onceki, sonraki } = komsuDolumlar(tur, tarih, saat);
+        const oncekiSayac = onceki && typeof onceki.kmSayaci === "number" ? onceki.kmSayaci : null;
+        const sonrakiSayac = sonraki && typeof sonraki.kmSayaci === "number" ? sonraki.kmSayaci : null;
+        if (km > 0) {
+          if (oncekiSayac != null && km <= oncekiSayac)
+            return hataGoster("Önceki dolumda araç " + kmYazisi(oncekiSayac) + " km'deydi. Daha büyük bir değer girin.");
+          if (oncekiSayac != null && km - oncekiSayac > 5000)
+            return hataGoster("Önceki dolumdan bu yana " + kmYazisi(km - oncekiSayac) + " km çıkıyor. Değeri kontrol edin.");
+          if (sonrakiSayac != null && km >= sonrakiSayac)
+            return hataGoster("Sonraki dolumda araç " + kmYazisi(sonrakiSayac) + " km'deydi. Daha küçük bir değer girin.");
+        }
+        kaydedilecekSayac = km > 0 ? km : null;
+        kaydedilecekKm = kaydedilecekSayac != null && oncekiSayac != null
+          ? Math.round((km - oncekiSayac) * 10) / 10
+          : (duzenlenenId ? duzenlenenKm : null);   // başlangıç kaydı: varsa eski gidilen km kalır
+      } else {
+        if (zorunlu && (isNaN(km) || km <= 0)) return hataGoster("Gidilen km'yi girin.");
+        if (kmGorunur && km > 5000) return hataGoster("Gidilen km çok büyük. Aracın km'sini değil, gidilen km'yi girin.");
+        kaydedilecekKm = kmGorunur && km > 0 ? km : null;
+        kaydedilecekSayac = duzenlenenSayac;   // gidilen modda girilen kayıtta sayaç yok
+      }
 
       const kayit = {
         tur: tur,
@@ -1370,7 +1458,8 @@
         fiyat: fiyat > 0 ? fiyat : Math.round(tutar / litre * 100) / 100,   // litre fiyatı (₺/Lt)
         istasyon: el("f-istasyon").value.trim(),
         sayac: null,                                  // artık kullanılmıyor (Sürüm 1.1)
-        gidilenKm: kaydedilecekKm                     // ana yakıt dışında km sorulmaz (Sürüm 1.4)
+        gidilenKm: kaydedilecekKm,                    // ana yakıt dışında km sorulmaz (Sürüm 1.4)
+        kmSayaci: kaydedilecekSayac                   // aracın km'si, sadece sayaç modunda (Sürüm 2.1)
       };
 
       const basarili = duzenlenenId ? kayitGuncelle(duzenlenenId, kayit) : kayitEkle(kayit);
@@ -1431,6 +1520,29 @@
       });
       kayitlar.forEach(k => { k.sayac = null; });
       kayitlariYaz(kayitlar);
+    }
+
+    // Sayaç zinciri (Sürüm 2.1): aracın km'si girilen her kaydın gidilen km'si, aynı türdeki
+    // bir önceki dolumun km'siyle farktan yeniden hesaplanır. Böylece araya kayıt eklenince,
+    // kayıt silinince ya da km düzeltilince sonraki dolumlar da doğru kalır.
+    // Önceki dolumun km'si yoksa (başlangıç kaydı) gidilen km'ye dokunulmaz.
+    function sayacZinciriniGuncelle() {
+      const kayitlar = kayitlariOku();
+      if (!kayitlar.some(k => typeof k.kmSayaci === "number")) return;
+      const sirali = [...kayitlar].sort((a, b) =>
+        (a.tarih + (a.saat || "")).localeCompare(b.tarih + (b.saat || "")));
+      const sonKayit = {};   // tür → o türün en son kaydı
+      let degisti = false;
+      sirali.forEach(k => {
+        const onceki = sonKayit[k.tur];
+        if (typeof k.kmSayaci === "number" && onceki && typeof onceki.kmSayaci === "number" &&
+            k.kmSayaci > onceki.kmSayaci) {
+          const fark = Math.round((k.kmSayaci - onceki.kmSayaci) * 10) / 10;
+          if (k.gidilenKm !== fark) { k.gidilenKm = fark; degisti = true; }
+        }
+        sonKayit[k.tur] = k;
+      });
+      if (degisti) kayitlariYaz(kayitlar);
     }
 
     // Bir dolum satırının HTML'i (Kayıtlar listesi ve takvimdeki gün paneli ortak kullanır) — Sürüm 2.0
@@ -1691,7 +1803,7 @@
     });
 
     // Kayıtlar değişince listeyi ve özeti birlikte yenile
-    function hepsiniGuncelle() { listeGuncelle(); takvimGuncelle(); ozetGuncelle(); yedekBilgisiGoster(); ayarKutulariniGoster(); }
+    function hepsiniGuncelle() { sayacZinciriniGuncelle(); listeGuncelle(); takvimGuncelle(); ozetGuncelle(); yedekBilgisiGoster(); ayarKutulariniGoster(); }
 
     // =====================================================
     // YEDEKLEME (Adım 7 / Sürüm 0.8)
@@ -1871,7 +1983,8 @@
             fiyat: typeof k.fiyat === "number" ? k.fiyat : Math.round(k.tutar / k.litre * 100) / 100,
             istasyon: typeof k.istasyon === "string" ? k.istasyon.slice(0, 60) : "",
             sayac: typeof k.sayac === "number" ? k.sayac : null,
-            gidilenKm: typeof k.gidilenKm === "number" ? k.gidilenKm : null
+            gidilenKm: typeof k.gidilenKm === "number" ? k.gidilenKm : null,
+            kmSayaci: typeof k.kmSayaci === "number" ? k.kmSayaci : null
           });
           kimlikler.add(k.id);
           eklenen++;
@@ -1906,7 +2019,14 @@
         el("ana-" + kod).checked = kod === ayar.anaYakit;
       });
       el("ana-yakit-blok").hidden = ayar.yakitlar.length < 2;
+      el("kmgiris-" + ayar.kmGiris).checked = true;
+      el("sayac-baslangic").hidden = true;
       const ana = yakitAdi(ayar.anaYakit);
+      if (ayar.kmGiris === "sayac") {
+        el("ayar-ipucu").textContent = "Her " + ana + " dolumunda aracın km'sini yaz; gidilen km önceki " + ana +
+          " dolumuyla farktan hesaplanır." + (ayar.yakitlar.length < 2 ? "" : " Aradaki diğer yakıtla gidilen yol da bu km'ye dahildir.");
+        return;
+      }
       el("ayar-ipucu").textContent = ayar.yakitlar.length < 2
         ? "Gidilen km her " + ana + " dolumunda sorulur."
         : "Km sayacını " + ana + " aldığında sıfırla. Gidilen km sadece " + ana +
@@ -1922,7 +2042,7 @@
       }
       const isaretliAna = YAKIT_KODLARI.find(kod => el("ana-" + kod).checked);
       const anaYakit = yakitlar.includes(isaretliAna) ? isaretliAna : yakitlar[0];
-      ayarlariYaz({ yakitlar, anaYakit });
+      ayarlariYaz({ yakitlar, anaYakit, kmGiris: ayarlariOku().kmGiris });
       ayarKartiGoster();
       formuSifirla();          // kayıt formu yeni ayarlara göre
       hepsiniGuncelle();
@@ -1930,6 +2050,49 @@
     }
     el("ayar-yakitlar").addEventListener("change", ayarDegisti);
     el("ayar-ana").addEventListener("change", ayarDegisti);
+
+    // Km giriş biçimi (Sürüm 2.1). Sayaca geçerken son ana yakıt dolumunun aracın km'si
+    // bilinmiyorsa bir kereliğine sorulur: şu anki km − son dolumdan beri gidilen km.
+    function kmGirisKaydet(kmGiris) {
+      ayarlariYaz({ ...ayarlariOku(), kmGiris });
+      ayarKartiGoster();
+      formuSifirla();
+      hepsiniGuncelle();
+      bildirimGoster("✓ Ayar kaydedildi");
+    }
+    function sonAnaDolum() {
+      const ana = ayarlariOku().anaYakit;
+      const liste = siraliKayitlar().filter(k => k.tur === ana);
+      return liste[liste.length - 1] || null;
+    }
+    el("ayar-kmgiris").addEventListener("change", () => {
+      const secim = el("kmgiris-sayac").checked ? "sayac" : "gidilen";
+      if (secim === "gidilen") return kmGirisKaydet("gidilen");
+      const son = sonAnaDolum();
+      if (!son || typeof son.kmSayaci === "number") return kmGirisKaydet("sayac");
+      // Başlangıç km'sini sor
+      el("b-sayac").value = "";
+      el("b-trip").value = "";
+      el("b-hata").textContent = "";
+      el("b-trip-baslik").textContent = "Son " + yakitAdi(son.tur) + " dolumundan beri gidilen km";
+      el("sayac-baslangic").hidden = false;
+      el("ayar-ipucu").textContent = "";
+      el("b-sayac").focus();
+    });
+    el("b-vazgec").addEventListener("click", ayarKartiGoster);
+    el("b-kaydet").addEventListener("click", () => {
+      const hata = m => { el("b-hata").textContent = m; };
+      const simdiki = Math.round(sayacSayisi(el("b-sayac").value) * 10) / 10;
+      const tripYazi = el("b-trip").value.trim();
+      const trip = tripYazi ? Math.round(sayiyaCevir(tripYazi) * 10) / 10 : 0;
+      if (!(simdiki > 0)) return hata("Aracın şu anki km'sini girin.");
+      if (isNaN(trip) || trip < 0) return hata("Gidilen km geçersiz.");
+      if (trip > 5000) return hata("Gidilen km çok büyük. Trip sayacındaki değeri girin.");
+      if (trip >= simdiki) return hata("Gidilen km, aracın km'sinden küçük olmalı.");
+      const son = sonAnaDolum();
+      if (son && !kayitGuncelle(son.id, { kmSayaci: Math.round((simdiki - trip) * 10) / 10 })) return;
+      kmGirisKaydet("sayac");
+    });
 
     // Ekranın altında kısa süreli bildirim balonu
     const bildirim = document.createElement("div");
