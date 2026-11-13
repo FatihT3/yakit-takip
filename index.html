@@ -712,7 +712,6 @@
       <div class="kart" id="kart-tahmin" hidden>
         <h2>Ay sonu tahmini</h2>
         <div class="deger" id="ozet-tahmin">— ₺</div>
-        <div class="kart-alt" id="ozet-tahmin-alt"></div>
       </div>
 
       <!-- Dört kutu (Sürüm 2.0): toplam, dolum, km başı maliyet, 100 km'de tüketim (km'nin girildiği yakıt) -->
@@ -845,6 +844,8 @@
         <div class="ipucu hata" id="b-hata"></div>
       </div>
       <div class="ipucu" id="ayar-ipucu"></div>
+      <!-- Sürüm 2.3: az alınan yakıtın güncel fiyatı internetten (lisans gereği kaynak adı yazılır) -->
+      <p class="bilgi" id="internet-fiyat-bilgi" style="margin-top:14px;font-size:12px"></p>
     </div>
 
     <!-- Yedekleme (Adım 7 / Sürüm 0.8). Excel'e aktarma (Sürüm 1.5): CSV dosyası, Türkçe Excel ayarlarıyla doğrudan açılır -->
@@ -1013,7 +1014,7 @@
   <script>
     // --- Sürüm: her güncellemede bu numarayı artıracağız ---
     // (Sürüm 2.0'dan beri ekranda gösterilmez; sadece yedek dosyasına yazılır.)
-    const SURUM = "2.2";
+    const SURUM = "2.3";
 
     // --- Sekme geçişi ---
     // Alttaki bir butona basılınca ilgili sayfayı gösterir, diğerlerini gizler
@@ -2251,18 +2252,93 @@
     }
 
     // -----------------------------------------------------
-    // AY SONU TAHMİNİ (Sürüm 1.6, 2.2'de yakıt başına hesap) — sadece içinde bulunulan ay seçiliyken görünür.
+    // İNTERNETTEN GÜNCEL FİYAT (Sürüm 2.3) — sadece ay sonu tahmininde, az alınan yakıt için.
+    // Kaynak: OpenVan.camp açık veri (Türkiye ortalaması, haftalık güncellenir, anahtar gerekmez, CC BY 4.0).
+    // 3 günde bir arka planda sorulur; telefonda `yakitInternetFiyat_v1` = { alinma, kaynakTarih, fiyatlar: {BENZIN, DIZEL, LPG} }.
+    // İnternet yoksa ya da cevap bozuksa sessizce vazgeçilir, eski kayıt (varsa) kullanılmaya devam eder.
+    // -----------------------------------------------------
+    const INTERNET_FIYAT_ANAHTAR = "yakitInternetFiyat_v1";
+    const INTERNET_FIYAT_ADRES = "https://openvan.camp/api/fuel/prices";
+    const INTERNET_FIYAT_ARALIK_GUN = 3;
+
+    function internetFiyatOku() {
+      try {
+        const v = JSON.parse(localStorage.getItem(INTERNET_FIYAT_ANAHTAR));
+        return v && v.fiyatlar ? v : null;
+      } catch (e) { return null; }
+    }
+
+    // Cevaptan Türkiye'nin TL/litre fiyatlarını çıkarır (yakıt başına birim/para birimi farklıysa o yakıt alınmaz)
+    function internetFiyatCozumle(cevap) {
+      const tr = cevap && cevap.data && cevap.data.TR;
+      if (!tr || !tr.prices) return null;
+      const birim = kod => (tr.units && tr.units[kod]) || tr.unit || "liter";
+      const para = kod => (tr.currencies && tr.currencies[kod]) || tr.local_currency || tr.currency;
+      const al = (...kodlar) => {
+        for (const kod of kodlar) {
+          const f = Number(tr.prices[kod]);
+          if (f > 5 && f < 1000 && /^lit/i.test(birim(kod)) && para(kod) === "TRY") return f;
+        }
+        return null;
+      };
+      const fiyatlar = { BENZIN: al("gasoline", "gasoline_regular"), DIZEL: al("diesel", "diesel_regular"), LPG: al("lpg") };
+      if (!fiyatlar.BENZIN && !fiyatlar.DIZEL && !fiyatlar.LPG) return null;
+      return { alinma: new Date().toISOString(), kaynakTarih: tr.fetched_at || (cevap.meta && cevap.meta.updated_at) || null, fiyatlar };
+    }
+
+    function internetFiyatGuncelle() {
+      const eski = internetFiyatOku();
+      if (eski && Date.now() - new Date(eski.alinma).getTime() < INTERNET_FIYAT_ARALIK_GUN * 864e5) return;
+      if (!navigator.onLine || !window.fetch) return;
+      const kontrol = window.AbortController ? new AbortController() : null;
+      const zaman = setTimeout(() => kontrol && kontrol.abort(), 10000);
+      fetch(INTERNET_FIYAT_ADRES, kontrol ? { signal: kontrol.signal } : {})
+        .then(c => c.ok ? c.json() : null)
+        .then(veri => {
+          const yeni = internetFiyatCozumle(veri);
+          if (!yeni) return;
+          localStorage.setItem(INTERNET_FIYAT_ANAHTAR, JSON.stringify(yeni));
+          internetFiyatBilgisiGoster();
+          ozetGuncelle();
+        })
+        .catch(() => {})
+        .finally(() => clearTimeout(zaman));
+    }
+
+    function internetFiyatBilgisiGoster() {
+      const v = internetFiyatOku();
+      const t = v && (v.kaynakTarih || v.alinma);
+      el("internet-fiyat-bilgi").innerHTML =
+        "Ay sonu tahmininde az alınan yakıtın güncel fiyatı internetten gelir (Türkiye ortalaması" +
+        (t ? ", " + new Date(t).toLocaleDateString("tr-TR") : "") + "). " +
+        'Veri: <a href="https://openvan.camp/" target="_blank" rel="noopener">OpenVan.camp</a> (CC BY 4.0)';
+    }
+
+    // -----------------------------------------------------
+    // AY SONU TAHMİNİ (Sürüm 1.6; 2.2'de yakıt başına; 2.3'te fiyat kuralları) — sadece içinde bulunulan ay seçiliyken.
+    // Kartta SADECE tahmin yazar (hesap gösterilmez, kullanıcı isteği 2.3).
     // Her yakıt AYRI hesaplanır, sonra toplanır (çift yakıtlı araçta LPG ile benzin karışmasın diye):
-    //   yakıtın tahmini = bu ay o yakıta harcanan
-    //                   + kalan gün × günlük ortalama litre × son 5 dolumun ortalama litre fiyatı
-    // Günlük ortalama litre = son 30 gündeki dolumların litre toplamı ÷ 30.
-    // Seyrek alınan yakıt (son 30 günde 2'den az dolum, örn. ara sıra alınan benzin) için pencere 90 güne
-    // uzatılır; yoksa 30 güne bir dolum düşünce tahmin şişer, düşmeyince sıfır çıkar.
-    // Son 5 dolumun fiyatı litreye göre ağırlıklıdır (tutar toplamı ÷ litre toplamı).
+    //   yakıtın tahmini = bu ay o yakıta harcanan + kalan gün × günlük ortalama litre × tahmini litre fiyatı
+    // Günlük ortalama litre = son 30 gündeki dolumların litre toplamı ÷ 30; o yakıtın son 30 günde 2'den az
+    //   dolumu varsa pencere 90 gün (seyrek yakıtta tahmin şişmesin / sıfır çıkmasın).
+    // Litre fiyatı:
+    //   - Son dolumu 14 günden yeni olan yakıt: son 3 dolumun fiyatlarının DÜZ ortalaması (litreye bakılmaz).
+    //   - Az alınan yakıt (son dolumu 14 günden eski): internetten gelen güncel fiyat.
+    //     İnternet fiyatı yoksa: o yakıtın son fiyatı × sık alınan yakıtın o günden bu yana zam oranı
+    //     (sık alınan yakıtın şimdiki son-3 ortalaması ÷ az alınan yakıtın son dolum günündeki son-3 ortalaması).
+    //     Sık alınan yakıt da yoksa son fiyat aynen kullanılır.
     // Bugün geçmiş sayılır. Hiçbir yakıtın son 90 günde dolumu yoksa kart gizli.
     // -----------------------------------------------------
+    const AZ_ALINAN_GUN = 14;
+
     function isoGun(t) {
       return t.getFullYear() + "-" + ikiHane(t.getMonth() + 1) + "-" + ikiHane(t.getDate());
+    }
+    const kayitFiyati = k => k.fiyat > 0 ? k.fiyat : k.tutar / k.litre;
+    // Listenin (eskiden yeniye) son 3 dolumunun litre fiyatlarının düz ortalaması
+    function son3Ortalama(liste) {
+      const son = liste.slice(-3);
+      return son.length ? son.reduce((t, k) => t + kayitFiyati(k), 0) / son.length : 0;
     }
 
     function ayTahminiGoster(sirali, buAyHarcanan) {
@@ -2274,45 +2350,56 @@
       const gunSayisi = new Date(bugun.getFullYear(), bugun.getMonth() + 1, 0).getDate();
       const kalanGun = gunSayisi - bugun.getDate();   // bugün geçmiş sayılır
       const bugunYazi = isoGun(bugun);
-      // "n gün öncesinden bu yana" sınırı: bugün dahil n gün
+      // "son n gün" sınırı: bugün dahil n gün
       const sinir = n => isoGun(new Date(bugun.getFullYear(), bugun.getMonth(), bugun.getDate() - n + 1));
+      const azSiniri = isoGun(new Date(bugun.getFullYear(), bugun.getMonth(), bugun.getDate() - AZ_ALINAN_GUN));
 
-      const parcalar = [];   // { kod, harcanan, gunlukLitre, fiyat, kalanTutar, pencere }
+      // Yakıt başına dolumlar (eskiden yeniye, bugünden sonrası yok)
+      const yakitListesi = {};
       YAKIT_KODLARI.forEach(kod => {
-        const liste = sirali.filter(k => k.tur === kod && k.tarih <= bugunYazi && k.litre > 0)
+        const liste = sirali.filter(k => k.tur === kod && k.tarih <= bugunYazi && k.litre > 0 && k.tutar > 0)
           .sort((x, y) => (x.tarih + (x.saat || "")).localeCompare(y.tarih + (y.saat || "")));
-        if (!liste.length) return;
-        const harcanan = topla(liste.filter(k => k.tarih.startsWith(seciliAy)), "tutar");
+        if (liste.length) yakitListesi[kod] = liste;
+      });
+      const azMi = kod => yakitListesi[kod][yakitListesi[kod].length - 1].tarih < azSiniri;
 
+      // Zam oranı için referans: az alınmayan yakıtlar içinde son 30 günde en çok dolumu olan
+      const referans = Object.keys(yakitListesi).filter(kod => !azMi(kod))
+        .sort((x, y) => yakitListesi[y].filter(k => k.tarih >= sinir(30)).length -
+                        yakitListesi[x].filter(k => k.tarih >= sinir(30)).length)[0];
+      const internet = internetFiyatOku();
+
+      function tahminiFiyat(kod) {
+        const liste = yakitListesi[kod];
+        if (!azMi(kod)) return son3Ortalama(liste);
+        if (internet && internet.fiyatlar[kod] > 0) return internet.fiyatlar[kod];
+        const son = liste[liste.length - 1];
+        if (referans) {
+          const ref = yakitListesi[referans];
+          const oGun = son3Ortalama(ref.filter(k => k.tarih <= son.tarih));
+          if (oGun > 0) return kayitFiyati(son) * son3Ortalama(ref) / oGun;
+        }
+        return kayitFiyati(son);
+      }
+
+      let kalanToplam = 0, veriVar = false;
+      Object.keys(yakitListesi).forEach(kod => {
+        const liste = yakitListesi[kod];
         let pencere = 30;
         let son = liste.filter(k => k.tarih >= sinir(30));
         if (son.length < 2) { pencere = 90; son = liste.filter(k => k.tarih >= sinir(90)); }
         const gunlukLitre = topla(son, "litre") / pencere;
-
-        const son5 = liste.slice(-5);
-        const fiyat = topla(son5, "tutar") / topla(son5, "litre");
-        const kalanTutar = gunlukLitre > 0 && fiyat > 0 ? gunlukLitre * fiyat * kalanGun : 0;
-        if (harcanan > 0 || gunlukLitre > 0) parcalar.push({ kod, harcanan, gunlukLitre, fiyat, kalanTutar, pencere });
+        if (!(gunlukLitre > 0)) return;
+        veriVar = true;
+        const fiyat = tahminiFiyat(kod);
+        if (fiyat > 0) kalanToplam += gunlukLitre * fiyat * kalanGun;
       });
-      if (!parcalar.some(p => p.gunlukLitre > 0)) return;
+      if (!veriVar) return;
 
-      const tahmin = buAyHarcanan + parcalar.reduce((t, p) => t + p.kalanTutar, 0);
+      const tahmin = buAyHarcanan + kalanToplam;
       const tamSayi = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
-      const litreBicim = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
       el("kart-tahmin").hidden = false;
       el("ozet-tahmin").textContent = "≈ " + tamSayi.format(Math.round(tahmin / 10) * 10) + " ₺";
-      if (kalanGun > 0) {
-        const satirlar = parcalar.filter(p => p.gunlukLitre > 0).map(p =>
-          yakitAdi(p.kod) + ": " + litreBicim.format(p.gunlukLitre) + " L/gün × " + tlBicim.format(p.fiyat) +
-          " ₺/L ≈ " + tamSayi.format(p.kalanTutar) + " ₺" + (p.pencere === 90 ? " (son 90 gün)" : ""));
-        el("ozet-tahmin-alt").innerHTML =
-          "Şu ana kadar " + tlBicim.format(buAyHarcanan) + " ₺ + kalan " + kalanGun + " gün:<br>" +
-          satirlar.join("<br>") +
-          '<br><small>Günlük litre son 30 günden, fiyat son 5 dolumdan.</small>';
-      } else {
-        el("ozet-tahmin-alt").textContent = "Şu ana kadar " + tlBicim.format(buAyHarcanan) + " ₺ (ayın son günü)";
-      }
     }
 
     // -----------------------------------------------------
@@ -2961,6 +3048,9 @@
     ayarKartiGoster();
     formuSifirla();
     hepsiniGuncelle();
+    internetFiyatBilgisiGoster();
+    internetFiyatGuncelle();   // 3 günde bir, arka planda (Sürüm 2.3)
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) internetFiyatGuncelle(); });
 
     // Çevrimdışı çalışma (Adım 8 / Sürüm 1.0): sw.js uygulamayı telefonda saklar
     if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
